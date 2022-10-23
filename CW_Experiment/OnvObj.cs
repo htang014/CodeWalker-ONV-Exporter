@@ -188,7 +188,7 @@ namespace ONV_Exporter
 
             public static OnvPoly YnvToOnvPoly(YnvPoly p)
             {
-                return new OnvPoly(p.RawData.Unknown_00h, (uint)p.Edges.Length);
+                return new OnvPoly(p.RawData.PolyFlags0, (uint)p.Edges.Length);
             }
         }
 
