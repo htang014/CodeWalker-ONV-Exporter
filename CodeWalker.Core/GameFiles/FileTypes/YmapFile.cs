@@ -315,7 +315,7 @@ namespace CodeWalker.GameFiles
                     YmapEntityDef d = alldefs[i];
                     int pind = d._CEntityDef.parentIndex;
                     bool isroot = false;
-                    if ((pind < 0) || (pind >= alldefs.Count) || (pind >= i)) //index check? might be a problem
+                    if ((pind < 0) || (pind >= alldefs.Count) || d.LodInParentYmap)
                     {
                         isroot = true;
                     }
@@ -405,6 +405,7 @@ namespace CodeWalker.GameFiles
                 LODLights.coneInnerAngle = MetaTypes.GetByteArray(Meta, soa.coneInnerAngle);
                 LODLights.coneOuterAngleOrCapExt = MetaTypes.GetByteArray(Meta, soa.coneOuterAngleOrCapExt);
                 LODLights.coronaIntensity = MetaTypes.GetByteArray(Meta, soa.coronaIntensity);
+                LODLights.CalcBB();
             }
         }
 
@@ -553,7 +554,6 @@ namespace CodeWalker.GameFiles
                 CCarGens[i] = CarGenerators[i].CCarGen;
             }
         }
-
         public void BuildInstances()
         {
             if (GrassInstanceBatches == null)
@@ -579,6 +579,38 @@ namespace CodeWalker.GameFiles
                 GrassInstanceBatches[i].Batch = b;
             }
         }
+        public void BuildLodLights()
+        {
+            if (LODLights == null) return;
+            LODLights.RebuildFromLodLights();
+        }
+        public void BuildDistantLodLights()
+        {
+            //how to rebuild these here? the LODlights array is on the child ymap...
+            //for now, they are being updated as they are edited in project window
+        }
+        public void BuildBoxOccluders()
+        {
+            if (BoxOccluders == null) return;
+            if (BoxOccluders.Length == 0) return;
+
+            var boxes = new BoxOccluder[BoxOccluders.Length];
+            for (int i = 0; i < BoxOccluders.Length; i++)
+            {
+                var box = BoxOccluders[i];
+                box.UpdateBoxStruct();
+                boxes[i] = box._Box;
+            }
+
+            CBoxOccluders = boxes;
+
+        }
+        public void BuildOccludeModels()
+        {
+            if (OccludeModels == null) return;
+            if (OccludeModels.Length == 0) return;
+            //nothing to do here, has to be done later due to embedded data
+        }
 
         public byte[] Save()
         {
@@ -589,13 +621,13 @@ namespace CodeWalker.GameFiles
             BuildCEntityDefs(); //technically this isn't required anymore since the CEntityDefs is no longer used for saving.
             BuildCCarGens();
             BuildInstances();
+            BuildLodLights();
+            BuildDistantLodLights();
+            BuildBoxOccluders();
+            BuildOccludeModels();
 
             //TODO:
-            //BuildLodLights();
-            //BuildDistantLodLights();
             //BuildTimecycleModifiers(); //already being saved - update them..
-            //BuildBoxOccluders();
-            //BuildOccludeModels();
             //BuildContainerLods();
 
 
@@ -648,16 +680,12 @@ namespace CodeWalker.GameFiles
 
             mapdata.carGenerators = mb.AddItemArrayPtr(MetaName.CCarGen, CCarGens);
 
-            //clear everything out for now - TODO: fix
+
+
+            //clear everything else out for now - TODO: fix
             if (mapdata.containerLods.Count1 != 0) LogSaveWarning("containerLods were not saved. (TODO!)");
-            if (mapdata.occludeModels.Count1 != 0) LogSaveWarning("occludeModels were not saved. (TODO!)");
-            if (mapdata.boxOccluders.Count1 != 0) LogSaveWarning("boxOccluders were not saved. (TODO!)");
             if (mapdata.instancedData.PropInstanceList.Count1 != 0) LogSaveWarning("instancedData.PropInstanceList was not saved. (TODO!)");
-            if (mapdata.LODLightsSOA.direction.Count1 != 0) LogSaveWarning("LODLightsSOA was not saved. (TODO!)");
-            if (mapdata.DistantLODLightsSOA.position.Count1 != 0) LogSaveWarning("DistantLODLightsSOA was not saved. (TODO!)");
             mapdata.containerLods = new Array_Structure();
-            mapdata.occludeModels = new Array_Structure();
-            mapdata.boxOccluders = new Array_Structure();
 
             if ((GrassInstanceBatches != null) && (GrassInstanceBatches.Length > 0))
             {
@@ -712,6 +740,32 @@ namespace CodeWalker.GameFiles
                 mapdata.DistantLODLightsSOA = new CDistantLODLight();
             }
 
+            if ((CBoxOccluders != null) && (CBoxOccluders.Length > 0))
+            {
+                mapdata.boxOccluders = mb.AddItemArrayPtr(MetaName.BoxOccluder, CBoxOccluders);
+            }
+            else
+            {
+                mapdata.boxOccluders = new Array_Structure();
+            }
+            if ((OccludeModels != null) && (OccludeModels.Length > 0))
+            {
+                COccludeModels = new OccludeModel[OccludeModels.Length];
+                for (int i = 0; i < OccludeModels.Length; i++)
+                {
+                    var model = OccludeModels[i];
+                    model.BuildVertices();
+                    model.BuildData();
+                    var cocc = model._OccludeModel;
+                    cocc.verts = mb.AddDataBlockPtr(model.Data, (MetaName)MetaStructureEntryDataType.UnsignedByte);//17
+                    COccludeModels[i] = cocc;
+                }
+                mapdata.occludeModels = mb.AddItemArrayPtr(MetaName.OccludeModel, COccludeModels);
+            }
+            else
+            {
+                mapdata.occludeModels = new Array_Structure();
+            }
 
 
             var block = new CBlockDesc();
@@ -743,9 +797,17 @@ namespace CodeWalker.GameFiles
             mb.AddStructureInfo(MetaName.CDistantLODLight);
             mb.AddStructureInfo(MetaName.CBlockDesc);
             mb.AddStructureInfo(MetaName.CMapData);
-            mb.AddStructureInfo(MetaName.CEntityDef);
-            mb.AddStructureInfo(MetaName.CMloInstanceDef);
-            mb.AddStructureInfo(MetaName.CTimeCycleModifier);
+            if ((AllEntities != null) && (AllEntities.Length > 0))
+            {
+                mb.AddStructureInfo(MetaName.CEntityDef);
+                mb.AddStructureInfo(MetaName.CMloInstanceDef);
+                mb.AddEnumInfo(MetaName.rage__eLodType); //LODTYPES_
+                mb.AddEnumInfo(MetaName.rage__ePriorityLevel);  //PRI_
+            }
+            if ((CTimeCycleModifiers != null) && (CTimeCycleModifiers.Length > 0))
+            {
+                mb.AddStructureInfo(MetaName.CTimeCycleModifier);
+            }
             if ((CCarGens != null) && (CCarGens.Length > 0))
             {
                 mb.AddStructureInfo(MetaName.CCarGen);
@@ -758,9 +820,14 @@ namespace CodeWalker.GameFiles
             {
                 mb.AddStructureInfo(MetaName.FloatXYZ);
             }
-
-            mb.AddEnumInfo(MetaName.rage__eLodType); //LODTYPES_
-            mb.AddEnumInfo(MetaName.rage__ePriorityLevel);  //PRI_
+            if ((CBoxOccluders != null) && (CBoxOccluders.Length > 0))
+            {
+                mb.AddStructureInfo(MetaName.BoxOccluder);
+            }
+            if ((COccludeModels != null) && (COccludeModels.Length > 0))
+            {
+                mb.AddStructureInfo(MetaName.OccludeModel);
+            }
 
 
             Meta meta = mb.GetMeta();
@@ -845,7 +912,7 @@ namespace CodeWalker.GameFiles
                                     }
                                     //pind = 0;
                                 }
-                                if ((pind >= 0) && (pind < AllEntities.Length))
+                                if ((pind >= 0) && (pind < AllEntities.Length) && !rcent.LodInParentYmap)
                                 {
                                     var pentity = AllEntities[pind];
                                     pentity.AddChild(rcent);
@@ -873,6 +940,45 @@ namespace CodeWalker.GameFiles
 
 
         }
+
+
+        public void ConnectToParent(YmapFile pymap)
+        {
+            Parent = pymap;
+            if (RootEntities != null) //parent changed or first set, make sure to link entities hierarchy
+            {
+                for (int i = 0; i < RootEntities.Length; i++)
+                {
+                    var ent = RootEntities[i];
+                    int pind = ent._CEntityDef.parentIndex;
+                    if (pind >= 0) //connect root entities to parents if they have them..
+                    {
+                        YmapEntityDef p = null;
+                        if ((pymap != null) && (pymap.AllEntities != null))
+                        {
+                            if ((pind < pymap.AllEntities.Length))
+                            {
+                                p = pymap.AllEntities[pind];
+                                ent.Parent = p;
+                                ent.ParentName = p._CEntityDef.archetypeName;
+                            }
+                        }
+                        else
+                        { }//should only happen if parent ymap not loaded yet...
+                    }
+                }
+            }
+            if (LODLights != null)
+            {
+                if (Parent?.DistantLODLights != null)
+                {
+                    LODLights.Init(Parent.DistantLODLights);
+                }
+                else
+                { }
+            }
+        }
+
 
 
 
@@ -988,6 +1094,195 @@ namespace CodeWalker.GameFiles
         }
 
 
+        public void AddLodLight(YmapLODLight lodlight)
+        {
+            if (LODLights == null)
+            {
+                LODLights = new YmapLODLights();
+                LODLights.Ymap = this;
+            }
+            List<YmapLODLight> lodlights = new List<YmapLODLight>();
+            if (LODLights?.LodLights != null) lodlights.AddRange(LODLights.LodLights);
+            lodlight.LodLights = this.LODLights;
+            lodlight.Index = lodlights.Count;
+            lodlights.Add(lodlight);
+            LODLights.LodLights = lodlights.ToArray();
+
+            HasChanged = true;
+
+            if (Parent?.DistantLODLights != null)
+            {
+                Parent.DistantLODLights.RebuildFromLodLights(LODLights.LodLights);
+                Parent.HasChanged = true;
+            }
+        }
+
+        public bool RemoveLodLight(YmapLODLight lodlight)
+        {
+            if (lodlight == null) return false;
+
+            List<YmapLODLight> newlodlights = new List<YmapLODLight>();
+
+            var lodlights = LODLights?.LodLights;
+            if (lodlights != null)
+            {
+                for (int i = 0; i < lodlights.Length; i++)
+                {
+                    var ll = lodlights[i];
+                    if (ll != lodlight)
+                    {
+                        newlodlights.Add(ll);
+                    }
+                }
+                if (newlodlights.Count == lodlights.Length)
+                {
+                    return false; //nothing removed... wasn't present?
+                }
+            }
+
+            for (int i = 0; i < newlodlights.Count; i++)
+            {
+                newlodlights[i].Index = i;
+            }
+
+            LODLights.LodLights = newlodlights.ToArray();
+
+            HasChanged = true;
+
+            if (Parent?.DistantLODLights != null)
+            {
+                Parent.DistantLODLights.RebuildFromLodLights(LODLights.LodLights);
+                Parent.HasChanged = true;
+            }
+
+            return true;
+        }
+
+
+        public void AddBoxOccluder(YmapBoxOccluder box)
+        {
+            if (box == null) return;
+            var boxes = new List<YmapBoxOccluder>();
+            if (BoxOccluders != null) boxes.AddRange(BoxOccluders);
+            box.Ymap = this;
+            box.Index = boxes.Count;
+            boxes.Add(box);
+            BoxOccluders = boxes.ToArray();
+
+            HasChanged = true;
+        }
+
+        public bool RemoveBoxOccluder(YmapBoxOccluder box)
+        {
+            if (box == null) return false;
+            var newboxes = new List<YmapBoxOccluder>();
+            if (BoxOccluders != null)
+            {
+                foreach (var oldbox in BoxOccluders)
+                {
+                    if (oldbox != box)
+                    {
+                        oldbox.Index = newboxes.Count;
+                        newboxes.Add(oldbox);
+                    }
+                }
+                if (newboxes.Count == BoxOccluders.Length)
+                {
+                    return false;//nothing removed... wasn't present?
+                }
+            }
+
+            BoxOccluders = newboxes.ToArray();
+
+            HasChanged = true;
+
+            return true;
+        }
+
+
+        public void AddOccludeModel(YmapOccludeModel model)
+        {
+            if (model == null) return;
+            var models = new List<YmapOccludeModel>();
+            if (OccludeModels != null) models.AddRange(OccludeModels);
+            model.Ymap = this;
+            models.Add(model);
+            OccludeModels = models.ToArray();
+
+            HasChanged = true;
+        }
+
+        public bool RemoveOccludeModel(YmapOccludeModel model)
+        {
+            if (model == null) return false;
+            var newmodels = new List<YmapOccludeModel>();
+            if (OccludeModels != null)
+            {
+                foreach (var oldmodel in OccludeModels)
+                {
+                    if (oldmodel != model)
+                    {
+                        oldmodel.Index = newmodels.Count;
+                        newmodels.Add(oldmodel);
+                    }
+                }
+                if (newmodels.Count == OccludeModels.Length)
+                {
+                    return false;//nothing removed... wasn't present?
+                }
+            }
+
+            OccludeModels = newmodels.ToArray();
+
+            HasChanged = true;
+
+            return true;
+        }
+
+
+        public void AddOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        {
+            if (tri == null) return;
+            if (tri.Model == null) return;
+
+            var tris = tri.Model.Triangles.ToList();
+            tri.Index = tris.Count;
+            tris.Add(tri);
+            tri.Model.Triangles = tris.ToArray();
+
+            //tri.Model.BuildBVH();
+            //...
+
+            HasChanged = true;
+        }
+
+        public bool RemoveOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        {
+            if (tri == null) return false;
+            if (tri.Model == null) return false;
+
+            var newtris = new List<YmapOccludeModelTriangle>();
+            if (tri.Model.Triangles != null)
+            {
+                foreach (var oldtri in tri.Model.Triangles)
+                {
+                    if (oldtri != tri)
+                    {
+                        oldtri.Index = newtris.Count;
+                        newtris.Add(oldtri);
+                    }
+                }
+            }
+            tri.Model.Triangles = newtris.ToArray();
+            //tri.Model.BuildBVH();
+            //...
+
+            HasChanged = true;
+
+            return true;
+        }
+
+
         public void AddGrassBatch(YmapGrassInstanceBatch newbatch)
         {
             List<YmapGrassInstanceBatch> batches = new List<YmapGrassInstanceBatch>();
@@ -1035,6 +1330,31 @@ namespace CodeWalker.GameFiles
         }
 
 
+
+
+        public void SetName(string newname)
+        {
+            var newnamel = newname.ToLowerInvariant();
+            var newnamex = newname + ".ymap";
+            var newnamexl = newname.ToLowerInvariant();
+            var newhash = JenkHash.GenHash(newnamel);
+            JenkIndex.Ensure(newnamel);
+            if (RpfFileEntry != null)
+            {
+                RpfFileEntry.Name = newnamex;
+                RpfFileEntry.NameLower = newnamexl;
+                RpfFileEntry.NameHash = JenkHash.GenHash(newnamexl);
+                RpfFileEntry.ShortNameHash = newhash;
+            }
+            Name = newnamex;
+            _CMapData.name = newhash;
+        }
+        public void SetFilePath(string filepath)
+        {
+            FilePath = filepath.ToLowerInvariant();
+            var newname = Path.GetFileNameWithoutExtension(filepath);
+            SetName(newname);
+        }
 
 
         public bool CalcFlags()
@@ -1086,6 +1406,19 @@ namespace CodeWalker.GameFiles
             if ((GrassInstanceBatches != null) && (GrassInstanceBatches.Length > 0))
             {
                 contentFlags = SetBit(contentFlags, 10); //64
+            }
+            if ((LODLights != null) && ((LODLights.direction?.Length ?? 0) > 0))
+            {
+                contentFlags = SetBit(contentFlags, 7); //128
+            }
+            if ((DistantLODLights != null) && ((DistantLODLights.positions?.Length ?? 0) > 0))
+            {
+                flags = SetBit(flags, 1); //2
+                contentFlags = SetBit(contentFlags, 8); //256
+            }
+            if ((BoxOccluders != null) || (OccludeModels != null))
+            {
+                contentFlags = SetBit(contentFlags, 5); //32
             }
 
 
@@ -1172,7 +1505,6 @@ namespace CodeWalker.GameFiles
 
                     emin = Vector3.Min(emin, bbmin);
                     emax = Vector3.Max(emax, bbmax);
-
                     smin = Vector3.Min(smin, sbmin);
                     smax = Vector3.Max(smax, sbmax);
                 }
@@ -1185,12 +1517,63 @@ namespace CodeWalker.GameFiles
                 {
                     emin = Vector3.Min(emin, batch.AABBMin);
                     emax = Vector3.Max(emax, batch.AABBMax);
-
                     smin = Vector3.Min(smin, (batch.AABBMin - batch.Batch.lodDist)); // + lodoffset
                     smax = Vector3.Max(smax, (batch.AABBMax + batch.Batch.lodDist)); // - lodoffset
                 }
             }
 
+            if (CarGenerators != null)
+            {
+                foreach (var cargen in CarGenerators)
+                {
+                    var len = cargen._CCarGen.perpendicularLength;
+                    emin = Vector3.Min(emin, cargen.Position - len);
+                    emax = Vector3.Max(emax, cargen.Position + len);
+                    smin = Vector3.Min(smin, cargen.Position - len*2.0f); //just a random guess, maybe should be more?
+                    smax = Vector3.Max(smax, cargen.Position + len*2.0f);
+                }
+            }
+
+            if (LODLights != null)
+            {
+                LODLights.CalcBB();
+                emin = Vector3.Min(emin, LODLights.BBMin - 20.0f); //about right
+                emax = Vector3.Max(emax, LODLights.BBMax + 20.0f);
+                smin = Vector3.Min(smin, (LODLights.BBMin - 950.0f)); //seems correct
+                smax = Vector3.Max(smax, (LODLights.BBMax + 950.0f));
+            }
+
+            if (DistantLODLights != null)
+            {
+                DistantLODLights.CalcBB();
+                emin = Vector3.Min(emin, DistantLODLights.BBMin - 20.0f); //not exact, but probably close enough
+                emax = Vector3.Max(emax, DistantLODLights.BBMax + 20.0f);
+                smin = Vector3.Min(smin, (DistantLODLights.BBMin - 3000.0f)); //seems correct
+                smax = Vector3.Max(smax, (DistantLODLights.BBMax + 3000.0f));
+            }
+
+            if (BoxOccluders != null)
+            {
+                foreach (var box in BoxOccluders)
+                {
+                    var siz = box.Size.Length() * 0.5f;//should really use box rotation instead....
+                    emin = Vector3.Min(emin, box.Position - siz);
+                    emax = Vector3.Max(emax, box.Position + siz);
+                    smin = Vector3.Min(smin, box.Position - siz);//check this! for some vanilla ymaps it seems right, others not
+                    smax = Vector3.Max(smax, box.Position + siz);//occluders don't seem to have a loddist
+                }
+            }
+
+            if (OccludeModels != null)
+            {
+                foreach (var model in OccludeModels)
+                {
+                    emin = Vector3.Min(emin, (model.BVH?.Box.Minimum ?? model._OccludeModel.bmin));//this needs to be updated!
+                    emax = Vector3.Max(emax, (model.BVH?.Box.Maximum ?? model._OccludeModel.bmax));
+                    smin = Vector3.Min(smin, (model.BVH?.Box.Minimum ?? model._OccludeModel.bmin));//check this! for some vanilla ymaps it seems right, others not
+                    smax = Vector3.Max(smax, (model.BVH?.Box.Maximum ?? model._OccludeModel.bmax));//occluders don't seem to have a loddist
+                }
+            }
 
             bool change = false;
             if (_CMapData.entitiesExtentsMin != emin)
@@ -1332,6 +1715,12 @@ namespace CodeWalker.GameFiles
         public object LodManagerRenderable = null;
 
 
+        public LightInstance[] Lights { get; set; }
+        //public uint[] LightHashTest { get; set; }
+
+        public bool LodInParentYmap { get { return ((_CEntityDef.flags >> 3) & 1) > 0; } }
+
+
         public string Name
         {
             get
@@ -1385,6 +1774,7 @@ namespace CodeWalker.GameFiles
 
             UpdateWidgetPosition();
             UpdateWidgetOrientation();
+            UpdateEntityHash();
         }
 
 
@@ -1515,26 +1905,10 @@ namespace CodeWalker.GameFiles
 
         public void UpdateEntityHash()
         {
-            unchecked
-            {
-                var ints = new int[4];
-                var pv = Position;
-                ints[0] = (int)pv.X;
-                ints[1] = (int)pv.Y;
-                ints[2] = (int)pv.Z;
-                ints[3] = (int)_CEntityDef.archetypeName.Hash;
-                var bytes = new byte[16];
-                for (int i = 0; i < 4; i++)
-                {
-                    var ib = i * 4;
-                    var b = BitConverter.GetBytes(ints[i]);
-                    bytes[ib + 0] = b[0];
-                    bytes[ib + 1] = b[1];
-                    bytes[ib + 2] = b[2];
-                    bytes[ib + 3] = b[3];
-                }
-                EntityHash = JenkHash.GenHash(bytes);
-            }
+            uint xhash = (uint)(Position.X * 100);
+            uint yhash = (uint)(Position.Y * 100);
+            uint zhash = (uint)(Position.Z * 100);
+            EntityHash = _CEntityDef.archetypeName.Hash ^ xhash ^ yhash ^ zhash & 0xffffffff;
         }
 
         public void SetOrientation(Quaternion ori, bool inverse = false)
@@ -1735,6 +2109,155 @@ namespace CodeWalker.GameFiles
             return _CEntityDef.ToString() + ((ChildList != null) ? (" (" + ChildList.Count.ToString() + " children) ") : " ") + _CEntityDef.lodLevel.ToString();
         }
 
+
+
+        public void EnsureLights(DrawableBase db)
+        {
+            if (Lights != null) return;
+            if (Archetype == null) return;
+            if (db == null) return;
+
+            var dd = db as Drawable;
+            var fd = db as FragDrawable;
+            var skel = db.Skeleton;
+            LightAttributes[] lightAttrs = null;
+            Bounds b = null;
+            if (dd != null)
+            {
+                lightAttrs = dd.LightAttributes?.data_items;
+                b = dd.Bound;
+            }
+            else if (fd != null)
+            {
+                var frag = fd?.OwnerFragment;
+                skel = skel ?? frag?.Drawable?.Skeleton;
+                lightAttrs = frag?.LightAttributes?.data_items;
+                b = frag?.PhysicsLODGroup?.PhysicsLOD1?.Bound;
+            }
+            if (lightAttrs == null) return;
+
+            var abmin = Vector3.Min(Archetype.BBMin, db.BoundingBoxMin);
+            var abmax = Vector3.Max(Archetype.BBMax, db.BoundingBoxMax);
+            if (b != null)
+            {
+                abmin = Vector3.Min(abmin, b.BoxMin);
+                abmax = Vector3.Max(abmax, b.BoxMax);
+            }
+            var bb = new BoundingBox(abmin, abmax).Transform(Position, Orientation, Scale);
+            var ints = new uint[7];
+            ints[0] = (uint)(bb.Minimum.X * 10.0f);
+            ints[1] = (uint)(bb.Minimum.Y * 10.0f);
+            ints[2] = (uint)(bb.Minimum.Z * 10.0f);
+            ints[3] = (uint)(bb.Maximum.X * 10.0f);
+            ints[4] = (uint)(bb.Maximum.Y * 10.0f);
+            ints[5] = (uint)(bb.Maximum.Z * 10.0f);
+
+            var bones = skel?.BonesMap;
+            var exts = (Archetype.Extensions?.Length ?? 0);// + (Extensions?.Length ?? 0);//seems entity extensions aren't included in this
+            //todo: create extension light instances
+
+            var lightInsts = new LightInstance[lightAttrs.Length];
+            for (int i = 0; i < lightAttrs.Length; i++)
+            {
+                ints[6] = (uint)(exts + i);
+                var la = lightAttrs[i];
+
+                var xform = Matrix.Identity;
+                if ((bones != null) && (bones.TryGetValue(la.BoneId, out Bone bone)))
+                {
+                    xform = bone.AbsTransform;
+                }
+
+                var li = new LightInstance();
+                li.Attributes = la;
+                li.Hash = ComputeLightHash(ints);
+                li.Position = Orientation.Multiply(xform.Multiply(la.Position)) + Position;
+                li.Direction = Orientation.Multiply(xform.MultiplyRot(la.Direction));
+                lightInsts[i] = li;
+            }
+            Lights = lightInsts;
+
+            //LightHashTest = new uint[25];
+            //for (int i = 0; i < 25; i++)
+            //{
+            //    ints[6] = (uint)(i);
+            //    LightHashTest[i] = ComputeLightHash(ints);
+            //}
+
+        }
+
+
+        public static uint ComputeLightHash(uint[] ints, uint seed = 0)
+        {
+            var a2 = ints.Length;
+            var v3 = a2;
+            var v5 = (uint)(seed + 0xDEADBEEF + 4 * ints.Length);
+            var v6 = v5;
+            var v7 = v5;
+
+            var c = 0;
+            for (var i = 0; i < (ints.Length - 4) / 3 + 1; i++, v3 -= 3, c += 3)
+            {
+                var v9 = ints[c + 2] + v5;
+                var v10 = ints[c + 1] + v6;
+                var v11 = ints[c] - v9;
+                var v13 = v10 + v9;
+                var v14 = (v7 + v11) ^ BitUtil.RotateLeft(v9, 4);
+                var v15 = v10 - v14;
+                var v17 = v13 + v14;
+                var v18 = v15 ^ BitUtil.RotateLeft(v14, 6);
+                var v19 = v13 - v18;
+                var v21 = v17 + v18;
+                var v22 = v19 ^ BitUtil.RotateLeft(v18, 8);
+                var v23 = v17 - v22;
+                var v25 = v21 + v22;
+                var v26 = v23 ^ BitUtil.RotateLeft(v22, 16);
+                var v27 = v21 - v26;
+                var v29 = v27 ^ BitUtil.RotateRight(v26, 13);
+                var v30 = v25 - v29;
+                v7 = v25 + v26;
+                v6 = v7 + v29;
+                v5 = v30 ^ BitUtil.RotateLeft(v29, 4);
+            }
+
+            if (v3 == 3)
+            {
+                v5 += ints[c + 2];
+            }
+
+            if (v3 >= 2)
+            {
+                v6 += ints[c + 1];
+            }
+
+            if (v3 >= 1)
+            {
+                var v34 = (v6 ^ v5) - BitUtil.RotateLeft(v6, 14);
+                var v35 = (v34 ^ (v7 + ints[c])) - BitUtil.RotateLeft(v34, 11);
+                var v36 = (v35 ^ v6) - BitUtil.RotateRight(v35, 7);
+                var v37 = (v36 ^ v34) - BitUtil.RotateLeft(v36, 16);
+                var v38 = BitUtil.RotateLeft(v37, 4);
+                var v39 = (((v35 ^ v37) - v38) ^ v36) - BitUtil.RotateLeft((v35 ^ v37) - v38, 14);
+                return (v39 ^ v37) - BitUtil.RotateRight(v39, 8);
+            }
+
+            return v5;
+        }
+
+
+        [TypeConverter(typeof(ExpandableObjectConverter))]
+        public class LightInstance
+        {
+            public LightAttributes Attributes { get; set; } //just for display purposes!
+            public uint Hash { get; set; }
+            public Vector3 Position { get; set; }
+            public Vector3 Direction { get; set; }
+
+            public override string ToString()
+            {
+                return Hash.ToString() + ": " + Attributes.Type.ToString();
+            }
+        }
     }
 
 
@@ -2264,6 +2787,43 @@ namespace CodeWalker.GameFiles
             }
 
         }
+
+
+        public void RebuildFromLodLights(YmapLODLight[] lodlights)
+        {
+            var n = lodlights?.Length ?? 0;
+            if (n == 0) return;
+
+            colours = new uint[n];
+            positions = new MetaVECTOR3[n];
+            var nstreetlights = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var ll = lodlights[i];
+                colours[i] = (uint)(ll.Colour.ToBgra());
+                positions[i] = new MetaVECTOR3(ll.Position);
+                if ((ll.StateFlags1 & 1) > 0)
+                {
+                    nstreetlights++;
+                }
+            }
+
+            var cdll = CDistantLODLight;
+            cdll.numStreetLights = (ushort)nstreetlights;
+
+            CalcBB();
+
+        }
+
+
+        public override string ToString()
+        {
+            if (Ymap != null)
+            {
+                return Ymap.ToString();
+            }
+            return base.ToString();
+        }
     }
 
     [TypeConverter(typeof(ExpandableObjectConverter))]
@@ -2283,26 +2843,328 @@ namespace CodeWalker.GameFiles
         public Vector3 BBMax { get; set; }
         public YmapFile Ymap { get; set; }
 
+        public YmapLODLight[] LodLights { get; set; }
+
+        public PathBVH BVH { get; set; }
+
+        public void Init(YmapDistantLODLights parent)
+        {
+            if (parent == null) return;
+
+            BuildLodLights(parent);
+            CalcBB();
+            BuildBVH();
+        }
+
+        public void BuildLodLights(YmapDistantLODLights parent)
+        {
+            var n = direction?.Length ?? 0;
+            n = Math.Min(n, parent.positions?.Length ?? 0);
+            n = Math.Min(n, parent.colours?.Length ?? 0);
+            n = Math.Min(n, falloff?.Length ?? 0);
+            n = Math.Min(n, falloffExponent?.Length ?? 0);
+            n = Math.Min(n, timeAndStateFlags?.Length ?? 0);
+            n = Math.Min(n, hash?.Length ?? 0);
+            n = Math.Min(n, coneInnerAngle?.Length ?? 0);
+            n = Math.Min(n, coneOuterAngleOrCapExt?.Length ?? 0);
+            n = Math.Min(n, coronaIntensity?.Length ?? 0);
+            if (n == 0) return;
+
+            LodLights = new YmapLODLight[n];
+            for (int i = 0; i < n; i++)
+            {
+                var l = new YmapLODLight();
+                l.Init(this, parent, i);
+                LodLights[i] = l;
+            }
+        }
+
+        public void BuildBVH()
+        {
+            BVH = new PathBVH(LodLights, 10, 10);
+        }
+
+
         public void CalcBB()
         {
-            //if (positions != null)
-            //{
-            //    Vector3 min = new Vector3(float.MaxValue);
-            //    Vector3 max = new Vector3(float.MinValue);
-            //    for (int i = 0; i < positions.Length; i++)
-            //    {
-            //        var p = positions[i];
-            //        Vector3 pv = p.ToVector3();
-            //        min = Vector3.Min(min, pv);
-            //        max = Vector3.Max(max, pv);
-            //    }
-            //    BBMin = min;
-            //    BBMax = max;
-            //}
+            var positions = Ymap?.Parent?.DistantLODLights?.positions;
+            if (positions != null)
+            {
+                Vector3 min = new Vector3(float.MaxValue);
+                Vector3 max = new Vector3(float.MinValue);
+                for (int i = 0; i < positions.Length; i++)
+                {
+                    var p = positions[i];
+                    Vector3 pv = p.ToVector3();
+                    min = Vector3.Min(min, pv);
+                    max = Vector3.Max(max, pv);
+                }
+                BBMin = min;
+                BBMax = max;
+            }
+            else if (Ymap != null)
+            {
+                BBMin = Ymap._CMapData.entitiesExtentsMin;
+                BBMax = Ymap._CMapData.entitiesExtentsMax;
+            }
+            else
+            { }
+        }
 
+        public void RebuildFromLodLights()
+        {
+            var n = LodLights?.Length ?? 0;
+            if (n <= 0)
+            {
+                direction = null;
+                falloff = null;
+                falloffExponent = null;
+                timeAndStateFlags = null;
+                hash = null;
+                coneInnerAngle = null;
+                coneOuterAngleOrCapExt = null;
+                coronaIntensity = null;
+            }
+            else
+            {
+                direction = new MetaVECTOR3[n];
+                falloff = new float[n];
+                falloffExponent = new float[n];
+                timeAndStateFlags = new uint[n];
+                hash = new uint[n];
+                coneInnerAngle = new byte[n];
+                coneOuterAngleOrCapExt = new byte[n];
+                coronaIntensity = new byte[n];
+
+                for (int i = 0; i < n; i++)
+                {
+                    var ll = LodLights[i];
+                    direction[i] = new MetaVECTOR3(ll.Direction);
+                    falloff[i] = ll.Falloff;
+                    falloffExponent[i] = ll.FalloffExponent;
+                    timeAndStateFlags[i] = ll.TimeAndStateFlags;
+                    hash[i] = ll.Hash;
+                    coneInnerAngle[i] = ll.ConeInnerAngle;
+                    coneOuterAngleOrCapExt[i] = ll.ConeOuterAngleOrCapExt;
+                    coronaIntensity[i] = ll.CoronaIntensity;
+                }
+            }
+
+        }
+
+
+        public override string ToString()
+        {
+            if (Ymap != null)
+            {
+                return Ymap.ToString();
+            }
+            return base.ToString();
         }
     }
 
+    [TypeConverter(typeof(ExpandableObjectConverter))]
+    public class YmapLODLight : BasePathNode
+    {
+        public YmapFile Ymap { get { return LodLights?.Ymap ?? DistLodLights?.Ymap; } }
+        public YmapLODLights LodLights { get; set; }
+        public YmapDistantLODLights DistLodLights { get; set; }
+        public int Index { get; set; }
+        public Color Colour { get; set; }
+        public Vector3 Position { get; set; }
+        public Vector3 Direction { get; set; }
+        public float Falloff { get; set; }
+        public float FalloffExponent { get; set; }
+        public uint TimeAndStateFlags { get; set; }
+        public uint Hash { get; set; }
+        public byte ConeInnerAngle { get; set; }
+        public byte ConeOuterAngleOrCapExt { get; set; }
+        public byte CoronaIntensity { get; set; }
+
+        public Quaternion Orientation { get; set; }
+        public Vector3 Scale { get; set; }
+
+        public Vector3 TangentX { get; set; }
+        public Vector3 TangentY { get; set; }
+
+        public LightType Type
+        {
+            get
+            {
+                return (LightType)((TimeAndStateFlags >> 26) & 7);
+            }
+            set
+            {
+                TimeAndStateFlags = (TimeAndStateFlags & 0xE3FFFFFF) + (((uint)value & 7) << 26);
+            }
+        }
+        public FlagsUint TimeFlags
+        {
+            get
+            {
+                return (TimeAndStateFlags & 0xFFFFFF);
+            }
+            set
+            {
+                TimeAndStateFlags = (TimeAndStateFlags & 0xFF000000) + (value & 0xFFFFFF);
+            }
+        }
+        public uint StateFlags1
+        {
+            get
+            {
+                return (TimeAndStateFlags >> 24) & 3;
+            }
+            set
+            {
+                TimeAndStateFlags = (TimeAndStateFlags & 0xFCFFFFFF) + ((value & 3) << 24);
+            }
+        }
+        public uint StateFlags2
+        {
+            get
+            {
+                return (TimeAndStateFlags >> 29) & 7;
+            }
+            set
+            {
+                TimeAndStateFlags = (TimeAndStateFlags & 0x1FFFFFFF) + ((value & 7) << 29);
+            }
+        }
+
+        public bool Enabled { get; set; } = true;
+
+        public void Init(YmapLODLights l, YmapDistantLODLights p, int i)
+        {
+            LodLights = l;
+            DistLodLights = p;
+            Index = i;
+
+            if (p.colours == null) return;
+            if ((i < 0) || (i >= p.colours.Length)) return;
+
+            Colour = Color.FromBgra(p.colours[i]);
+            Position = p.positions[i].ToVector3();
+            Direction = l.direction[i].ToVector3();
+            Falloff = l.falloff[i];
+            FalloffExponent = l.falloffExponent[i];
+            TimeAndStateFlags = l.timeAndStateFlags[i];
+            Hash = l.hash[i];
+            ConeInnerAngle = l.coneInnerAngle[i];
+            ConeOuterAngleOrCapExt = l.coneOuterAngleOrCapExt[i];
+            CoronaIntensity = l.coronaIntensity[i];
+
+            UpdateTangentsAndOrientation();
+
+            Scale = new Vector3(Falloff);
+        }
+
+        public void UpdateTangentsAndOrientation()
+        {
+            switch (Type)
+            {
+                default:
+                case LightType.Point:
+                    TangentX = Vector3.UnitX;
+                    TangentY = Vector3.UnitY;
+                    Orientation = Quaternion.Identity;
+                    break;
+                case LightType.Spot:
+                    TangentX = Vector3.Normalize(Direction.GetPerpVec());
+                    TangentY = Vector3.Normalize(Vector3.Cross(Direction, TangentX));
+                    break;
+                case LightType.Capsule:
+                    TangentX = -Vector3.Normalize(Direction.GetPerpVec());
+                    TangentY = Vector3.Normalize(Vector3.Cross(Direction, TangentX));
+                    break;
+            }
+
+            if (Type == LightType.Point)
+            {
+                Orientation = Quaternion.Identity;
+            }
+            else
+            {
+                var m = new Matrix();
+                m.Row1 = new Vector4(TangentX, 0);
+                m.Row2 = new Vector4(TangentY, 0);
+                m.Row3 = new Vector4(Direction, 0);
+                Orientation = Quaternion.RotationMatrix(m);
+            }
+        }
+
+        public void SetColour(Color c)
+        {
+            Colour = c;
+
+            if ((DistLodLights?.colours != null) && (DistLodLights.colours.Length >= Index))
+            {
+                DistLodLights.colours[Index] = (uint)(c.ToBgra());
+            }
+
+        }
+        public void SetPosition(Vector3 pos)
+        {
+            Position = pos;
+
+            if ((DistLodLights?.positions != null) && (DistLodLights.positions.Length >= Index))
+            {
+                DistLodLights.positions[Index] = new MetaVECTOR3(pos);
+            }
+
+        }
+        public void SetOrientation(Quaternion ori)
+        {
+            var inv = Quaternion.Invert(Orientation);
+            var delta = ori * inv;
+            TangentX = Vector3.Normalize(delta.Multiply(TangentX));
+            TangentY = Vector3.Normalize(delta.Multiply(TangentY));
+            Direction = Vector3.Normalize(delta.Multiply(Direction));
+            Orientation = ori;
+        }
+        public void SetScale(Vector3 scale)
+        {
+            switch (Type)
+            {
+                case LightType.Point:
+                case LightType.Spot:
+                    Falloff = scale.Z;
+                    break;
+                case LightType.Capsule:
+                    Falloff = scale.X;
+                    ConeOuterAngleOrCapExt = (byte)Math.Min(255, Math.Max(0, Math.Round(Math.Max((uint)ConeOuterAngleOrCapExt, 2) * Math.Abs(scale.Z / Math.Max(Scale.Z, 0.01f)))));//lols
+                    break;
+            }
+            Scale = scale;
+        }
+
+
+
+        public void CopyFrom(YmapLODLight l)
+        {
+            Colour = l.Colour;
+            Position = l.Position;
+            Direction = l.Direction;
+            Falloff = l.Falloff;
+            FalloffExponent = l.FalloffExponent;
+            TimeAndStateFlags = l.TimeAndStateFlags;
+            Hash = l.Hash;
+            ConeInnerAngle = l.ConeInnerAngle;
+            ConeOuterAngleOrCapExt = l.ConeOuterAngleOrCapExt;
+            CoronaIntensity = l.CoronaIntensity;
+
+            Orientation = l.Orientation;
+            Scale = l.Scale;
+            TangentX = l.TangentX;
+            TangentY = l.TangentY;
+        }
+
+
+        public override string ToString()
+        {
+            return Index.ToString() + ": " + Position.ToString();
+        }
+    }
 
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YmapTimeCycleModifier
@@ -2414,6 +3276,21 @@ namespace CodeWalker.GameFiles
         public byte[] Indices { get; set; }
         public int Index { get; set; }
 
+        public YmapOccludeModelTriangle[] Triangles { get; set; }
+        public TriangleBVH BVH { get; set; }
+
+        public FlagsUint Flags
+        {
+            get
+            {
+                return _OccludeModel.flags;
+            }
+            set
+            {
+                _OccludeModel.flags = value;
+            }
+        }
+
         public YmapOccludeModel(YmapFile ymap, OccludeModel model)
         {
             Ymap = ymap;
@@ -2435,11 +3312,118 @@ namespace CodeWalker.GameFiles
         }
 
 
+        public void BuildTriangles()
+        {
+            if ((Vertices == null) || (Indices == null))
+            {
+                Triangles = null;
+                return;
+            }
+            var tris = new List<YmapOccludeModelTriangle>();
+            for (int i = 0; i < Indices.Length; i += 3)
+            {
+                var tri = new YmapOccludeModelTriangle(this, Vertices[Indices[i]], Vertices[Indices[i+1]], Vertices[Indices[i+2]], tris.Count);
+                tris.Add(tri);
+            }
+            Triangles = tris.ToArray();
+        }
+        public void BuildBVH()
+        {
+            if (Triangles == null)
+            {
+                BVH = null;
+                return;
+            }
+
+            BVH = new TriangleBVH(Triangles);
+
+        }
+        public void BuildVertices()
+        {
+            //create vertices and indices arrays from Triangles
+            if (Triangles == null)
+            {
+                Vertices = null;
+                Indices = null;
+                return;
+            }
+            var vdict = new Dictionary<Vector3, byte>();
+            var verts = new List<Vector3>();
+            var inds = new List<byte>();
+            byte ensureVert(Vector3 v)
+            {
+                if (vdict.TryGetValue(v, out byte b))
+                {
+                    return b;
+                }
+                if (verts.Count > 255)
+                {
+                    return 0;
+                }
+                var i = (byte)verts.Count;
+                vdict[v] = i;
+                verts.Add(v);
+                return i;
+            }
+            for (int i = 0; i < Triangles.Length; i++)
+            {
+                var tri = Triangles[i];
+                inds.Add(ensureVert(tri.Corner1));
+                inds.Add(ensureVert(tri.Corner2));
+                inds.Add(ensureVert(tri.Corner3));
+            }
+            Vertices = verts.ToArray();
+            Indices = inds.ToArray();
+        }
+        public void BuildData()
+        {
+            //create Data from vertices and indices arrays
+            if (Vertices == null) return;
+            if (Indices == null) return;
+            var dlen = (Vertices.Length * 12) + (Indices.Length * 1);
+            var d = new byte[dlen];
+            var vbytes = MetaTypes.ConvertArrayToBytes(Vertices);
+            var ibytes = Indices;
+            Buffer.BlockCopy(vbytes, 0, d, 0, vbytes.Length);
+            Buffer.BlockCopy(ibytes, 0, d, vbytes.Length, ibytes.Length);
+            Data = d;
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+            for (int i = 0; i < Vertices.Length; i++)
+            {
+                min = Vector3.Min(min, Vertices[i]);
+                max = Vector3.Max(max, Vertices[i]);
+            }
+            _OccludeModel.bmin = min;
+            _OccludeModel.bmax = max;
+            _OccludeModel.Unused0 = min.X;
+            _OccludeModel.Unused1 = max.X;
+            _OccludeModel.dataSize = (uint)dlen;
+            _OccludeModel.numVertsInBytes = (ushort)vbytes.Length;
+            _OccludeModel.numTris = (ushort)((ibytes.Length / 3) + 32768);//is this actually a flag lurking..?
+            //_OccludeModel.flags = ...
+        }
+
+        public YmapOccludeModelTriangle RayIntersect(ref Ray ray, ref float hitdist)
+        {
+            if (Triangles == null)
+            {
+                BuildTriangles();
+                BuildBVH();
+            }
+            else if (BVH == null)
+            {
+                BuildBVH();
+            }
+            if (BVH == null) return null;
+            return BVH.RayIntersect(ref ray, ref hitdist) as YmapOccludeModelTriangle;
+        }
+
         public EditorVertex[] GetTriangleVertices()
         {
             if ((Vertices == null) || (Indices == null)) return null;
             EditorVertex[] res = new EditorVertex[Indices.Length];//changing from indexed to nonindexed triangle list
-            var colour = new Color4(1.0f, 1.0f, 1.0f, 0.2f); //todo: colours for occlude models? currently transparent white
+            var colour = new Color4(1.0f, 0.0f, 0.0f, 0.8f); //todo: colours for occluders?
             var colourval = (uint)colour.ToRgba();
             for (int i = 0; i < Indices.Length; i++)
             {
@@ -2448,7 +3432,6 @@ namespace CodeWalker.GameFiles
             }
             return res;
         }
-
         public EditorVertex[] GetPathVertices()
         {
             return null;
@@ -2457,10 +3440,32 @@ namespace CodeWalker.GameFiles
         {
             return null;
         }
+
+        public override string ToString()
+        {
+            return Index.ToString() + ": " + (Vertices?.Length ?? 0).ToString() + " vertices, " + (Triangles?.Length ?? 0).ToString() + " triangles";
+        }
     }
 
     [TypeConverter(typeof(ExpandableObjectConverter))]
-    public class YmapBoxOccluder
+    public class YmapOccludeModelTriangle : TriangleBVHItem
+    {
+        public YmapOccludeModel Model { get; set; }
+        public YmapFile Ymap { get { return Model?.Ymap; } }
+        public int Index { get; set; }
+
+        public YmapOccludeModelTriangle(YmapOccludeModel model, Vector3 v1, Vector3 v2, Vector3 v3, int i)
+        {
+            Model = model;
+            Corner1 = v1;
+            Corner2 = v2;
+            Corner3 = v3;
+            Index = i;
+        }
+    }
+
+    [TypeConverter(typeof(ExpandableObjectConverter))]
+    public class YmapBoxOccluder : BasePathData
     {
         public BoxOccluder _Box;
         public BoxOccluder Box { get { return _Box; } set { _Box = value; } }
@@ -2474,6 +3479,7 @@ namespace CodeWalker.GameFiles
         public Vector3 BBMax { get; set; }
         public Quaternion Orientation { get; set; }
         public int Index { get; set; }
+
 
 
         public YmapBoxOccluder(YmapFile ymap, BoxOccluder box)
@@ -2494,6 +3500,68 @@ namespace CodeWalker.GameFiles
 
         }
 
+        public void UpdateBoxStruct()
+        {
+            _Box.iCenterX = (short)Math.Round(Position.X * 4.0f);
+            _Box.iCenterY = (short)Math.Round(Position.Y * 4.0f);
+            _Box.iCenterZ = (short)Math.Round(Position.Z * 4.0f);
+            _Box.iLength = (short)Math.Round(Size.X * 4.0f);
+            _Box.iWidth = (short)Math.Round(Size.Y * 4.0f);
+            _Box.iHeight = (short)Math.Round(Size.Z * 4.0f);
+
+            var dir = Orientation.Multiply(Vector3.UnitX) * 0.5f;
+            _Box.iSinZ = (short)Math.Round(dir.X * 32767.0f);
+            _Box.iCosZ = (short)Math.Round(dir.Y * 32767.0f);
+        }
+
+
+        public void SetSize(Vector3 s)
+        {
+            Size = s;
+            BBMin = Size * -0.5f;
+            BBMax = Size * 0.5f;
+        }
+
+
+        public EditorVertex[] GetTriangleVertices()
+        {
+            Vector3 xform(float x, float y, float z)
+            {
+                return Orientation.Multiply(new Vector3(x, y, z)) + Position;
+            }
+            EditorVertex[] res = new EditorVertex[36];
+            var colour = new Color4(0.0f, 0.0f, 1.0f, 0.8f); //todo: colours for occluders?
+            var c = (uint)colour.ToRgba();
+            var s = Size * 0.5f;
+            var v0 = new EditorVertex() { Position = xform(-s.X, -s.Y, -s.Z), Colour = c };
+            var v1 = new EditorVertex() { Position = xform(-s.X, -s.Y, +s.Z), Colour = c };
+            var v2 = new EditorVertex() { Position = xform(-s.X, +s.Y, -s.Z), Colour = c };
+            var v3 = new EditorVertex() { Position = xform(-s.X, +s.Y, +s.Z), Colour = c };
+            var v4 = new EditorVertex() { Position = xform(+s.X, -s.Y, -s.Z), Colour = c };
+            var v5 = new EditorVertex() { Position = xform(+s.X, -s.Y, +s.Z), Colour = c };
+            var v6 = new EditorVertex() { Position = xform(+s.X, +s.Y, -s.Z), Colour = c };
+            var v7 = new EditorVertex() { Position = xform(+s.X, +s.Y, +s.Z), Colour = c };
+            res[00] = v0; res[01] = v1; res[02] = v2; res[03] = v2; res[04] = v1; res[05] = v3;
+            res[06] = v2; res[07] = v3; res[08] = v6; res[09] = v6; res[10] = v3; res[11] = v7;
+            res[12] = v1; res[13] = v5; res[14] = v3; res[15] = v3; res[16] = v5; res[17] = v7;
+            res[18] = v6; res[19] = v7; res[20] = v4; res[21] = v4; res[22] = v7; res[23] = v5;
+            res[24] = v4; res[25] = v5; res[26] = v0; res[27] = v0; res[28] = v5; res[29] = v1;
+            res[30] = v2; res[31] = v6; res[32] = v0; res[33] = v0; res[34] = v6; res[35] = v4;
+            return res;
+        }
+        public EditorVertex[] GetPathVertices()
+        {
+            return null;
+        }
+        public Vector4[] GetNodePositions()
+        {
+            return null;
+        }
+
+        public override string ToString()
+        {
+            return Index.ToString() + ": " + FloatUtil.GetVector3String(Position);
+        }
     }
 
 }

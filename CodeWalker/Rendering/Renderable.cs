@@ -209,7 +209,7 @@ namespace CodeWalker.Rendering
                         {
                             fragtransforms = phys.OwnerFragPhysLod.FragTransforms?.Matrices;
                             fragtransformid = phys.OwnerFragPhysIndex;
-                            fragoffset = new Vector4(phys.OwnerFragPhysLod.Unknown_30h, 0.0f);
+                            fragoffset = new Vector4(phys.OwnerFragPhysLod.PositionOffset, 0.0f);
 
 
                             switch (phys.BoneTag) //right hand side wheel flip!
@@ -325,20 +325,25 @@ namespace CodeWalker.Rendering
             }
             if (lights != null)
             {
-                var rlights = new RenderableLight[lights.Length];
-                for (int i = 0; i < lights.Length; i++)
-                {
-                    var rlight = new RenderableLight();
-                    rlight.Owner = this;
-                    rlight.Init(ref lights[i]);
-                    rlights[i] = rlight;
-                }
-                Lights = rlights;
+                InitLights(lights);
             }
 
 
             UpdateBoneTransforms();
 
+        }
+
+        public void InitLights(LightAttributes[] lights)
+        {
+            var rlights = new RenderableLight[lights.Length];
+            for (int i = 0; i < lights.Length; i++)
+            {
+                var rlight = new RenderableLight();
+                rlight.Owner = this;
+                rlight.Init(lights[i]);
+                rlights[i] = rlight;
+            }
+            Lights = rlights;
         }
 
         private RenderableModel InitModel(DrawableModel dm)
@@ -511,7 +516,7 @@ namespace CodeWalker.Rendering
 
             var dwbl = this.Key;
             var skel = Skeleton;
-            var bones = skel?.Bones?.Items;
+            var bones = skel?.BonesSorted;//.Bones?.Items;//
             if (bones == null)
             { return; }
 
@@ -1353,7 +1358,9 @@ namespace CodeWalker.Rendering
 
     public class RenderableLight
     {
+        public LightAttributes OwnerLight;
         public Renderable Owner;
+        public Bone Bone;
         public Vector3 Position;
         public Vector3 Colour;
         public Vector3 Direction;
@@ -1371,19 +1378,25 @@ namespace CodeWalker.Rendering
         public uint TimeFlags;
         public MetaHash TextureHash;
 
-        public void Init(ref LightAttributes_s l)
+        public void Init(LightAttributes l)
         {
-            Position = l.Position;
-            Colour = new Vector3(l.ColorR, l.ColorG, l.ColorB) * ((l.Intensity * 5.0f)  / 255.0f);
-            Direction = l.Direction;
-            TangentX = l.Tangent;
-            TangentY = Vector3.Cross(l.Direction, l.Tangent);
+            OwnerLight = l;
+            var pos = l.Position;
+            var dir = l.Direction;
+            var tan = l.Tangent;
+            var bones = Owner?.Skeleton?.BonesMap;
+            bones?.TryGetValue(l.BoneId, out Bone);
+            Position = pos;
+            Colour = new Vector3(l.ColorR, l.ColorG, l.ColorB) * (2.0f * l.Intensity  / 255.0f);
+            Direction = dir;
+            TangentX = tan;
+            TangentY = Vector3.Normalize(Vector3.Cross(l.Direction, TangentX));
             Type = l.Type;
             Intensity = l.Intensity;
             Falloff = l.Falloff;
-            FalloffExponent = Math.Max(l.FalloffExponent * 0.25f, 0.5f);//is this right?
-            ConeInnerAngle = l.ConeInnerAngle * 0.01745329f; //is this right??
-            ConeOuterAngle = l.ConeOuterAngle * 0.01745329f; //pi/180
+            FalloffExponent = l.FalloffExponent;
+            ConeInnerAngle = Math.Min(l.ConeInnerAngle, l.ConeOuterAngle) * 0.01745329f; //is this right??
+            ConeOuterAngle = Math.Max(l.ConeInnerAngle, l.ConeOuterAngle) * 0.01745329f; //pi/180
             CapsuleExtent = l.Extent;
             CullingPlaneNormal = l.CullingPlaneNormal;
             CullingPlaneOffset = l.CullingPlaneOffset;
@@ -1483,16 +1496,10 @@ namespace CodeWalker.Rendering
             if (ll == null) return;
             if (dll == null) return;
 
-            var n = dll.positions?.Length ?? 0;
-            n = Math.Min(n, dll.colours?.Length ?? 0);
-            n = Math.Min(n, ll.direction?.Length ?? 0);
-            n = Math.Min(n, ll.falloff?.Length ?? 0);
-            n = Math.Min(n, ll.falloffExponent?.Length ?? 0);
-            n = Math.Min(n, ll.timeAndStateFlags?.Length ?? 0);
-            n = Math.Min(n, ll.hash?.Length ?? 0);
-            n = Math.Min(n, ll.coneInnerAngle?.Length ?? 0);
-            n = Math.Min(n, ll.coneOuterAngleOrCapExt?.Length ?? 0);
-            n = Math.Min(n, ll.coronaIntensity?.Length ?? 0);
+            if (ll.LodLights == null) 
+            { return; }
+
+            var n = ll.LodLights.Length;
 
             if (n <= 0)
             { return; }
@@ -1504,18 +1511,20 @@ namespace CodeWalker.Rendering
 
             for (int i = 0; i < n; i++)
             {
+                var l = ll.LodLights[i];
+                if (l.Enabled == false) continue;
                 var light = new LODLight();
-                light.Position = dll.positions[i].ToVector3();
-                light.Colour = dll.colours[i];
-                light.Direction = ll.direction[i].ToVector3();
-                light.TimeAndStateFlags = ll.timeAndStateFlags[i];
-                light.TangentX = new Vector4(Vector3.Normalize(light.Direction.GetPerpVec()), 0.0f);
-                light.TangentY = new Vector4(Vector3.Cross(light.Direction, light.TangentX.XYZ()), 0.0f);
-                light.Falloff = ll.falloff[i];
-                light.FalloffExponent = Math.Max(ll.falloffExponent[i]*0.01f, 0.5f);//is this right?
-                light.InnerAngle = ll.coneInnerAngle[i] * 0.0087266462f; //pi/360
-                light.OuterAngleOrCapExt = ll.coneOuterAngleOrCapExt[i] * 0.0087266462f; //pi/360
-                var type = (LightType)((light.TimeAndStateFlags >> 26) & 7);
+                light.Position = l.Position;
+                light.Colour = (uint)l.Colour.ToBgra();
+                light.Direction = l.Direction;
+                light.TimeAndStateFlags = l.TimeAndStateFlags;
+                light.TangentX = new Vector4(l.TangentX, 0.0f);
+                light.TangentY = new Vector4(l.TangentY, 0.0f);
+                light.Falloff = l.Falloff;
+                light.FalloffExponent = l.FalloffExponent;
+                light.InnerAngle = l.ConeInnerAngle * 0.012319971f; //pi/255
+                light.OuterAngleOrCapExt = l.ConeOuterAngleOrCapExt * 0.012319971f; //pi/255
+                var type = l.Type;
                 switch (type)
                 {
                     case LightType.Point:
@@ -1525,7 +1534,7 @@ namespace CodeWalker.Rendering
                         spots.Add(light);
                         break;
                     case LightType.Capsule:
-                        light.OuterAngleOrCapExt = ll.coneOuterAngleOrCapExt[i] * 0.25f;
+                        light.OuterAngleOrCapExt = l.ConeOuterAngleOrCapExt * 0.25f;
                         caps.Add(light);
                         break;
                     default: break;//just checking...
@@ -1760,16 +1769,16 @@ namespace CodeWalker.Rendering
 
             VertexCount = 4;
             Vertices = new VertexTypePCT[4];
-            Vertices[0].Position = new Vector3(key.minX, key.minY, key.z);
+            Vertices[0].Position = new Vector3(key.minX, key.minY, key.z.Value);
             Vertices[0].Texcoord = new Vector2(0.0f, 0.0f);
             Vertices[0].Colour = (uint)new Color4(key.a1 / 255.0f).ToRgba();
-            Vertices[1].Position = new Vector3(key.maxX, key.minY, key.z);
+            Vertices[1].Position = new Vector3(key.maxX, key.minY, key.z.Value);
             Vertices[1].Texcoord = new Vector2(sx, 0.0f);
             Vertices[1].Colour = (uint)new Color4(key.a2 / 255.0f).ToRgba();
-            Vertices[2].Position = new Vector3(key.minX, key.maxY, key.z);
+            Vertices[2].Position = new Vector3(key.minX, key.maxY, key.z.Value);
             Vertices[2].Texcoord = new Vector2(0.0f, sy);
             Vertices[2].Colour = (uint)new Color4(key.a3 / 255.0f).ToRgba();
-            Vertices[3].Position = new Vector3(key.maxX, key.maxY, key.z);
+            Vertices[3].Position = new Vector3(key.maxX, key.maxY, key.z.Value);
             Vertices[3].Texcoord = new Vector2(sx, sy);
             Vertices[3].Colour = (uint)new Color4(key.a4 / 255.0f).ToRgba();
 

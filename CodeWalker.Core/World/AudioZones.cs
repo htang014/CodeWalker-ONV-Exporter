@@ -8,30 +8,15 @@ using System.Threading.Tasks;
 
 namespace CodeWalker.World
 {
-    public class AudioZones // : BasePathData
+    public class AudioZones
     {
         public volatile bool Inited = false;
         public GameFileCache GameFileCache;
-
-        //public Vector4[] GetNodePositions()
-        //{
-        //    return null;
-        //}
-        //public EditorVertex[] GetPathVertices()
-        //{
-        //    return null;
-        //}
-        //public EditorVertex[] GetTriangleVertices()
-        //{
-        //    return TriangleVerts;
-        //}
-        //public EditorVertex[] TriangleVerts;
 
         public List<AudioPlacement> Zones = new List<AudioPlacement>();
         public List<AudioPlacement> Emitters = new List<AudioPlacement>();
         public List<AudioPlacement> AllItems = new List<AudioPlacement>();
 
-        public List<RelFile> AllFiles = new List<RelFile>();
         public Dictionary<RelFile, AudioPlacement[]> PlacementsDict = new Dictionary<RelFile, AudioPlacement[]>();
 
 
@@ -41,49 +26,22 @@ namespace CodeWalker.World
 
             GameFileCache = gameFileCache;
 
-            var rpfman = gameFileCache.RpfMan;
-
-
             Zones.Clear();
             Emitters.Clear();
             AllItems.Clear();
 
 
-            Dictionary<uint, RpfFileEntry> datrelentries = new Dictionary<uint, RpfFileEntry>();
-            var audrpf = rpfman.FindRpfFile("x64\\audio\\audio_rel.rpf");
-            if (audrpf != null)
-            {
-                AddRpfDatRels(audrpf, datrelentries);
-            }
-
-            if (gameFileCache.EnableDlc)
-            {
-                var updrpf = rpfman.FindRpfFile("update\\update.rpf");
-                if (updrpf != null)
-                {
-                    AddRpfDatRels(updrpf, datrelentries);
-                }
-                foreach (var dlcrpf in GameFileCache.DlcActiveRpfs) //load from current dlc rpfs
-                {
-                    AddRpfDatRels(dlcrpf, datrelentries);
-                }
-            }
-
             List<AudioPlacement> placements = new List<AudioPlacement>();
 
-            foreach (var dat151entry in datrelentries.Values)
+            foreach (var relfile in GameFileCache.AudioDatRelFiles)
             {
-                var relfile = rpfman.GetFile<RelFile>(dat151entry);
-                if (relfile != null)
-                {
-                    AllFiles.Add(relfile);
+                if (relfile == null) continue;
 
-                    placements.Clear();
+                placements.Clear();
 
-                    CreatePlacements(relfile, placements, true);
+                CreatePlacements(relfile, placements, true);
 
-                    PlacementsDict[relfile] = placements.ToArray();
-                }
+                PlacementsDict[relfile] = placements.ToArray();
             }
 
             AllItems.AddRange(Zones);
@@ -92,31 +50,6 @@ namespace CodeWalker.World
             Inited = true;
         }
 
-
-
-        private void AddRpfDatRels(RpfFile rpffile, Dictionary<uint, RpfFileEntry> datrelentries)
-        {
-            if (rpffile.AllEntries == null) return;
-            foreach (var entry in rpffile.AllEntries)
-            {
-                if (entry is RpfFileEntry)
-                {
-                    RpfFileEntry fentry = entry as RpfFileEntry;
-                    //if (entry.NameLower.EndsWith(".rel"))
-                    //{
-                    //    datrelentries[entry.NameHash] = fentry;
-                    //}
-                    if (entry.NameLower.EndsWith(".dat54.rel"))
-                    {
-                        datrelentries[entry.NameHash] = fentry;
-                    }
-                    if (entry.NameLower.EndsWith(".dat151.rel"))
-                    {
-                        datrelentries[entry.NameHash] = fentry;
-                    }
-                }
-            }
-        }
 
         private void CreatePlacements(RelFile relfile, List<AudioPlacement> placements, bool addtoLists = false)
         {
@@ -128,9 +61,9 @@ namespace CodeWalker.World
                     placement = new AudioPlacement(relfile, reldata as Dat151AmbientZone);
                     if (addtoLists) Zones.Add(placement);
                 }
-                else if (reldata is Dat151AmbientEmitter)
+                else if (reldata is Dat151AmbientRule)
                 {
-                    placement = new AudioPlacement(relfile, reldata as Dat151AmbientEmitter);
+                    placement = new AudioPlacement(relfile, reldata as Dat151AmbientRule);
                     if (addtoLists) Emitters.Add(placement);
                 }
                 if (placement != null)
@@ -173,7 +106,7 @@ namespace CodeWalker.World
         public MetaHash NameHash { get; set; }
         public RelFile RelFile { get; set; }
         public Dat151AmbientZone AudioZone { get; set; }
-        public Dat151AmbientEmitter AudioEmitter { get; set; }
+        public Dat151AmbientRule AudioEmitter { get; set; }
         public Dat151ZoneShape Shape { get; set; }
         public string ShortTypeName { get; set; }
         public string FullTypeName { get; set; }
@@ -204,7 +137,7 @@ namespace CodeWalker.World
 
             UpdateFromZone();
         }
-        public AudioPlacement(RelFile rel, Dat151AmbientEmitter emitter)
+        public AudioPlacement(RelFile rel, Dat151AmbientRule emitter)
         {
             RelFile = rel;
             AudioEmitter = emitter;
@@ -229,29 +162,29 @@ namespace CodeWalker.World
             switch (zone.Shape)
             {
                 case Dat151ZoneShape.Box:
-                    InnerPos = zone.InnerPos;
-                    InnerMax = zone.InnerSize * 0.5f;
+                    InnerPos = zone.PlaybackZonePosition;
+                    InnerMax = zone.PlaybackZoneSize * 0.5f;
                     InnerMin = -InnerMax;
-                    InnerOri = Quaternion.RotationAxis(Vector3.UnitZ, zone.InnerAngle * deg2rad);
+                    InnerOri = Quaternion.RotationAxis(Vector3.UnitZ, zone.PlaybackZoneAngle * deg2rad);
                     break;
                 case Dat151ZoneShape.Sphere:
-                    InnerPos = zone.InnerPos;
+                    InnerPos = zone.PlaybackZonePosition;
                     InnerOri = Quaternion.Identity;
-                    InnerRad = zone.InnerSize.X;
-                    OuterRad = zone.OuterSize.X;
+                    InnerRad = zone.PlaybackZoneSize.X;
+                    OuterRad = zone.ActivationZoneSize.X;
                     break;
                 case Dat151ZoneShape.Line:
-                    InnerPos = zone.InnerPos;
+                    InnerPos = zone.PlaybackZonePosition;
                     InnerMin = new Vector3(-1.0f, -1.0f, 0.0f);
-                    InnerMax = new Vector3(1.0f, 1.0f, (zone.InnerSize - zone.InnerPos).Length());
-                    InnerOri = Quaternion.Invert(Quaternion.LookAtLH(zone.InnerPos, zone.InnerSize, Vector3.UnitZ));
+                    InnerMax = new Vector3(1.0f, 1.0f, (zone.PlaybackZoneSize - zone.PlaybackZonePosition).Length());
+                    InnerOri = Quaternion.Invert(Quaternion.LookAtLH(zone.PlaybackZonePosition, zone.PlaybackZoneSize, Vector3.UnitZ));
                     break;
             }
 
-            OuterPos = zone.OuterPos;
-            OuterMax = zone.OuterSize * 0.5f;
+            OuterPos = zone.ActivationZonePosition;
+            OuterMax = zone.ActivationZoneSize * 0.5f;
             OuterMin = -OuterMax;
-            OuterOri = Quaternion.RotationAxis(Vector3.UnitZ, zone.OuterAngle * deg2rad);
+            OuterOri = Quaternion.RotationAxis(Vector3.UnitZ, zone.ActivationZoneAngle * deg2rad);
 
             bool useouter = ((InnerMax.X == 0) || (InnerMax.Y == 0) || (InnerMax.Z == 0));
             if (useouter && (zone.Shape != Dat151ZoneShape.Sphere))
@@ -306,8 +239,8 @@ namespace CodeWalker.World
 
             if (AudioZone != null)
             {
-                AudioZone.InnerPos = InnerPos;
-                AudioZone.OuterPos = OuterPos;
+                AudioZone.PlaybackZonePosition = InnerPos;
+                AudioZone.ActivationZonePosition = OuterPos;
             }
             if (AudioEmitter != null)
             {
@@ -333,8 +266,8 @@ namespace CodeWalker.World
                 OuterOri = Orientation;
                 if (AudioZone != null)
                 {
-                    AudioZone.InnerAngle = uangl;
-                    AudioZone.OuterAngle = uangl;
+                    AudioZone.PlaybackZoneAngle = uangl;
+                    AudioZone.ActivationZoneAngle = uangl;
                 }
             }
             else
@@ -347,7 +280,7 @@ namespace CodeWalker.World
                     OuterOri = Orientation;
                     if (AudioZone != null)
                     {
-                        AudioZone.OuterAngle = uangl;
+                        AudioZone.ActivationZoneAngle = uangl;
                     }
                 }
                 else
@@ -355,7 +288,7 @@ namespace CodeWalker.World
                     InnerOri = Orientation;
                     if (AudioZone != null)
                     {
-                        AudioZone.InnerAngle = uangl;
+                        AudioZone.PlaybackZoneAngle = uangl;
                     }
                 }
             }

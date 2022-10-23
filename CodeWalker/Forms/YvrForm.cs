@@ -1,5 +1,6 @@
 ﻿using CodeWalker.GameFiles;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -15,6 +16,7 @@ namespace CodeWalker.Forms
     {
 
         private string fileName;
+        private YvrFile yvr;
         public string FileName
         {
             get { return fileName; }
@@ -41,10 +43,9 @@ namespace CodeWalker.Forms
             Text = fileName + " - Vehicle Records Viewer - CodeWalker by dexyfex";
         }
 
-
-
         public void LoadYvr(YvrFile yvr)
         {
+            this.yvr = yvr;
             fileName = yvr?.Name;
             if (string.IsNullOrEmpty(fileName))
             {
@@ -53,65 +54,106 @@ namespace CodeWalker.Forms
 
             UpdateFormTitle();
 
-
-            StringBuilder sb = new StringBuilder();
-
             if ((yvr != null) && (yvr.Records != null) && (yvr.Records.Entries != null) && (yvr.Records.Entries.data_items != null))
             {
-                sb.AppendLine("PositionX, PositionY, PositionZ, Time, VelocityX, VelocityY, VelocityZ, RightX, RightY, RightZ, TopX, TopY, TopZ, SteeringAngle, GasPedalPower, BrakePedalPower, HandbrakeUsed");
-                foreach (var entry in yvr.Records.Entries.data_items)
-                {
-                    sb.Append(FloatUtil.ToString(entry.PositionX));
-                    sb.Append(", ");
-                    sb.Append(FloatUtil.ToString(entry.PositionY));
-                    sb.Append(", ");
-                    sb.Append(FloatUtil.ToString(entry.PositionZ));
-                    sb.Append(", ");
-                    sb.Append(entry.Time.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.VelocityX.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.VelocityY.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.VelocityZ.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.RightX.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.RightY.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.RightZ.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.TopX.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.TopY.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.TopZ.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.SteeringAngle.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.GasPedalPower.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.BrakePedalPower.ToString());
-                    sb.Append(", ");
-                    sb.Append(entry.HandbrakeUsed.ToString());
-                    sb.AppendLine();
-                }
+                ExportButton.Enabled = true;
+                CopyClipboardButton.Enabled = true;
+                LoadListView();
             }
-            else
-            {
-                sb.AppendLine("Unable to load Vehicle Records.");
-            }
-
-            MainTextBox.Text = sb.ToString();
-
         }
 
 
+        private string GenerateText()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("PositionX, PositionY, PositionZ, Time, VelocityX, VelocityY, VelocityZ, RightX, RightY, RightZ, ForwardX, ForwardY, ForwardZ, SteeringAngle, GasPedalPower, BrakePedalPower, HandbrakeUsed");
+            foreach (var entry in yvr.Records.Entries.data_items)
+            {
+                sb.Append(FloatUtil.ToString(entry.Position.X));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Position.Y));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Position.Z));
+                sb.Append(", ");
+                sb.Append(entry.Time.ToString());
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Velocity.X));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Velocity.Y));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Velocity.Z));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Right.X));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Right.Y));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Right.Z));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Forward.X));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Forward.Y));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Forward.Z));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.Steering));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.GasPedal));
+                sb.Append(", ");
+                sb.Append(FloatUtil.ToString(entry.BrakePedal));
+                sb.Append(", ");
+                sb.Append(entry.Handbrake.ToString());
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
 
+        public void LoadListView()
+        {
+            MainListView.BeginUpdate(); // performance
+            foreach (var entry in yvr.Records.Entries.data_items)
+            {
+                string[] row =
+                {
+                    FloatUtil.ToString(entry.Position.X),
+                    FloatUtil.ToString(entry.Position.Y),
+                    FloatUtil.ToString(entry.Position.Z),
+                    entry.Time.ToString(),
+                    FloatUtil.ToString(entry.Velocity.X),
+                    FloatUtil.ToString(entry.Velocity.Y),
+                    FloatUtil.ToString(entry.Velocity.Z),
+                    FloatUtil.ToString(entry.Right.X),
+                    FloatUtil.ToString(entry.Right.Y),
+                    FloatUtil.ToString(entry.Right.Z),
+                    FloatUtil.ToString(entry.Forward.X),
+                    FloatUtil.ToString(entry.Forward.Y),
+                    FloatUtil.ToString(entry.Forward.Z),
+                    FloatUtil.ToString(entry.Steering),
+                    FloatUtil.ToString(entry.GasPedal),
+                    FloatUtil.ToString(entry.BrakePedal),
+                    entry.Handbrake.ToString(),
+                };
+                MainListView.Items.Add(new ListViewItem(row));
+            }
+            MainListView.EndUpdate();
+        }
 
         private void CloseButton_Click(object sender, EventArgs e)
         {
             Close();
+        }
+
+        private void ExportButton_Click(object sender, EventArgs e)
+        {
+            saveFileDialog.FileName = Path.GetFileNameWithoutExtension(fileName) + ".csv";
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                File.WriteAllText(saveFileDialog.FileName, GenerateText());
+            }
+        }
+
+        private void CopyClipboardButton_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(GenerateText());
         }
     }
 }

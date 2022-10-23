@@ -46,6 +46,7 @@ namespace CodeWalker.Rendering
 
             try
             {
+                //SharpDX.Configuration.EnableObjectTracking = true;
 
                 SwapChainDescription scd = new SwapChainDescription()
                 {
@@ -154,12 +155,18 @@ namespace CodeWalker.Rendering
 
             dxform.CleanupScene();
 
+            if (context != null) context.ClearState();
+
             //dipose of all objects
             if (depthview != null) depthview.Dispose();
             if (depthbuffer != null) depthbuffer.Dispose();
             if (targetview != null) targetview.Dispose();
             if (backbuffer != null) backbuffer.Dispose();
             if (swapchain != null) swapchain.Dispose();
+            if (context != null) context.Dispose();
+
+            //var objs = SharpDX.Diagnostics.ObjectTracker.FindActiveObjects();
+
             if (device != null) device.Dispose();
 
             GC.Collect();
@@ -280,6 +287,11 @@ namespace CodeWalker.Rendering
                 {
                     Thread.Sleep(10); //don't hog CPU when minimised
                     if (dxform.Form.IsDisposed) return; //if closed while minimised
+                }
+                if (Form.ActiveForm == null)
+                {
+                    Thread.Sleep(100); //reduce the FPS when the app isn't active (maybe this should be configurable?)
+                    if (context.IsDisposed) return; //if form closed while sleeping (eg from rightclick on taskbar)
                 }
 
                 Rendering = true;

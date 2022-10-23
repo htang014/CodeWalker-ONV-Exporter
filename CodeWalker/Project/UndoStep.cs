@@ -470,6 +470,388 @@ namespace CodeWalker.Project
 
 
 
+    public abstract class LodLightUndoStep : UndoStep
+    {
+        public YmapLODLight LodLight { get; set; }
+
+        protected void UpdateGraphics(WorldForm wf)
+        {
+            if (LodLight != null)
+            {
+                wf.UpdateLodLightGraphics(LodLight);
+            }
+        }
+    }
+    public class LodLightPositionUndoStep : LodLightUndoStep
+    {
+        public Vector3 StartPosition { get; set; }
+        public Vector3 EndPosition { get; set; }
+
+        public LodLightPositionUndoStep(YmapLODLight lodlight, Vector3 startpos)
+        {
+            LodLight = lodlight;
+            StartPosition = startpos;
+            EndPosition = lodlight?.Position ?? Vector3.Zero;
+        }
+
+        private void Update(WorldForm wf, ref MapSelection sel, Vector3 p)
+        {
+            LodLight?.SetPosition(p);
+
+            if (LodLight != sel.LodLight) wf.SelectObject(LodLight);
+            wf.SetWidgetPosition(p);
+
+            UpdateGraphics(wf);
+        }
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartPosition);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndPosition);
+        }
+
+        public override string ToString()
+        {
+            return "LodLight " + (LodLight?.Index.ToString() ?? "") + ": Position";
+        }
+    }
+    public class LodLightRotationUndoStep : LodLightUndoStep
+    {
+        public Quaternion StartRotation { get; set; }
+        public Quaternion EndRotation { get; set; }
+
+        public LodLightRotationUndoStep(YmapLODLight lodlight, Quaternion startrot)
+        {
+            LodLight = lodlight;
+            StartRotation = startrot;
+            EndRotation = lodlight?.Orientation ?? Quaternion.Identity;
+        }
+
+
+        private void Update(WorldForm wf, ref MapSelection sel, Quaternion q)
+        {
+            LodLight?.SetOrientation(q);
+
+            if (LodLight != sel.LodLight) wf.SelectObject(LodLight);
+            wf.SetWidgetRotation(q);
+
+            UpdateGraphics(wf);
+        }
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartRotation);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndRotation);
+        }
+
+        public override string ToString()
+        {
+            return "LodLight " + (LodLight?.Index.ToString() ?? "") + ": Rotation";
+        }
+    }
+    public class LodLightScaleUndoStep : LodLightUndoStep
+    {
+        public Vector3 StartScale { get; set; }
+        public Vector3 EndScale { get; set; }
+
+        public LodLightScaleUndoStep(YmapLODLight lodlight, Vector3 startscale)
+        {
+            LodLight = lodlight;
+            StartScale = startscale;
+            EndScale = lodlight?.Scale ?? new Vector3(1.0f);
+        }
+
+        private void Update(WorldForm wf, ref MapSelection sel, Vector3 s)
+        {
+            LodLight?.SetScale(s);
+
+            if (LodLight != sel.LodLight) wf.SelectObject(LodLight);
+            wf.SetWidgetScale(s);
+
+            UpdateGraphics(wf);
+        }
+
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartScale);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndScale);
+        }
+
+        public override string ToString()
+        {
+            return "LodLight " + (LodLight?.Index.ToString() ?? "") + ": Scale";
+        }
+    }
+
+
+    public abstract class BoxOccluderUndoStep : UndoStep
+    {
+        public YmapBoxOccluder BoxOccluder { get; set; }
+
+        protected void UpdateGraphics(WorldForm wf)
+        {
+            if (BoxOccluder != null)
+            {
+                wf.UpdateBoxOccluderGraphics(BoxOccluder);
+            }
+        }
+    }
+    public class BoxOccluderPositionUndoStep : BoxOccluderUndoStep
+    {
+        public Vector3 StartPosition { get; set; }
+        public Vector3 EndPosition { get; set; }
+
+        public BoxOccluderPositionUndoStep(YmapBoxOccluder box, Vector3 startpos)
+        {
+            BoxOccluder = box;
+            StartPosition = startpos;
+            EndPosition = box?.Position ?? Vector3.Zero;
+        }
+
+        private void Update(WorldForm wf, ref MapSelection sel, Vector3 p)
+        {
+            BoxOccluder.Position = p;
+
+            if (BoxOccluder != sel.BoxOccluder) wf.SelectObject(BoxOccluder);
+            wf.SetWidgetPosition(p);
+
+            UpdateGraphics(wf);
+        }
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartPosition);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndPosition);
+        }
+
+        public override string ToString()
+        {
+            return "BoxOccluder " + (BoxOccluder?.Index.ToString() ?? "") + ": Position";
+        }
+    }
+    public class BoxOccluderRotationUndoStep : BoxOccluderUndoStep
+    {
+        public Quaternion StartRotation { get; set; }
+        public Quaternion EndRotation { get; set; }
+
+        public BoxOccluderRotationUndoStep(YmapBoxOccluder box, Quaternion startrot)
+        {
+            BoxOccluder = box;
+            StartRotation = startrot;
+            EndRotation = box?.Orientation ?? Quaternion.Identity;
+        }
+
+
+        private void Update(WorldForm wf, ref MapSelection sel, Quaternion q)
+        {
+            BoxOccluder.Orientation = q;
+
+            if (BoxOccluder != sel.BoxOccluder) wf.SelectObject(BoxOccluder);
+            wf.SetWidgetRotation(q);
+
+            UpdateGraphics(wf);
+        }
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartRotation);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndRotation);
+        }
+
+        public override string ToString()
+        {
+            return "BoxOccluder " + (BoxOccluder?.Index.ToString() ?? "") + ": Rotation";
+        }
+    }
+    public class BoxOccluderScaleUndoStep : BoxOccluderUndoStep
+    {
+        public Vector3 StartScale { get; set; }
+        public Vector3 EndScale { get; set; }
+
+        public BoxOccluderScaleUndoStep(YmapBoxOccluder box, Vector3 startscale)
+        {
+            BoxOccluder = box;
+            StartScale = startscale;
+            EndScale = box?.Size ?? new Vector3(1.0f);
+        }
+
+        private void Update(WorldForm wf, ref MapSelection sel, Vector3 s)
+        {
+            BoxOccluder.SetSize(s);
+
+            if (BoxOccluder != sel.BoxOccluder) wf.SelectObject(BoxOccluder);
+            wf.SetWidgetScale(s);
+
+            UpdateGraphics(wf);
+        }
+
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartScale);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndScale);
+        }
+
+        public override string ToString()
+        {
+            return "BoxOccluder " + (BoxOccluder?.Index.ToString() ?? "") + ": Scale";
+        }
+    }
+
+
+    public abstract class OccludeModelTriUndoStep : UndoStep
+    {
+        public YmapOccludeModelTriangle OccludeModelTri { get; set; }
+
+        protected void UpdateGraphics(WorldForm wf)
+        {
+            if (OccludeModelTri != null)
+            {
+                wf.UpdateOccludeModelGraphics(OccludeModelTri.Model);
+            }
+        }
+    }
+    public class OccludeModelTriPositionUndoStep : OccludeModelTriUndoStep
+    {
+        public Vector3 StartPosition { get; set; }
+        public Vector3 EndPosition { get; set; }
+
+        public OccludeModelTriPositionUndoStep(YmapOccludeModelTriangle tri, Vector3 startpos)
+        {
+            OccludeModelTri = tri;
+            StartPosition = startpos;
+            EndPosition = tri?.Center ?? Vector3.Zero;
+        }
+
+        private void Update(WorldForm wf, ref MapSelection sel, Vector3 p)
+        {
+            OccludeModelTri.Center = p;
+
+            if (OccludeModelTri != sel.OccludeModelTri) wf.SelectObject(OccludeModelTri);
+            wf.SetWidgetPosition(p);
+
+            UpdateGraphics(wf);
+        }
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartPosition);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndPosition);
+        }
+
+        public override string ToString()
+        {
+            return "OccludeModel Triangle " + (OccludeModelTri?.Index.ToString() ?? "") + ": Position";
+        }
+    }
+    public class OccludeModelTriRotationUndoStep : OccludeModelTriUndoStep
+    {
+        public Quaternion StartRotation { get; set; }
+        public Quaternion EndRotation { get; set; }
+
+        public OccludeModelTriRotationUndoStep(YmapOccludeModelTriangle tri, Quaternion startrot)
+        {
+            OccludeModelTri = tri;
+            StartRotation = startrot;
+            EndRotation = tri?.Orientation ?? Quaternion.Identity;
+        }
+
+
+        private void Update(WorldForm wf, ref MapSelection sel, Quaternion q)
+        {
+            OccludeModelTri.Orientation = q;
+
+            if (OccludeModelTri != sel.OccludeModelTri) wf.SelectObject(OccludeModelTri);
+            wf.SetWidgetRotation(q);
+
+            UpdateGraphics(wf);
+        }
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartRotation);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndRotation);
+        }
+
+        public override string ToString()
+        {
+            return "OccludeModel Triangle " + (OccludeModelTri?.Index.ToString() ?? "") + ": Rotation";
+        }
+    }
+    public class OccludeModelTriScaleUndoStep : OccludeModelTriUndoStep
+    {
+        public Vector3 StartScale { get; set; }
+        public Vector3 EndScale { get; set; }
+
+        public OccludeModelTriScaleUndoStep(YmapOccludeModelTriangle tri, Vector3 startscale)
+        {
+            OccludeModelTri = tri;
+            StartScale = startscale;
+            EndScale = tri?.Scale ?? new Vector3(1.0f);
+        }
+
+        private void Update(WorldForm wf, ref MapSelection sel, Vector3 s)
+        {
+            OccludeModelTri.Scale = s;
+
+            if (OccludeModelTri != sel.OccludeModelTri) wf.SelectObject(OccludeModelTri);
+            wf.SetWidgetScale(s);
+
+            UpdateGraphics(wf);
+        }
+
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, StartScale);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            Update(wf, ref sel, EndScale);
+        }
+
+        public override string ToString()
+        {
+            return "OccludeModel Triangle " + (OccludeModelTri?.Index.ToString() ?? "") + ": Scale";
+        }
+    }
+
+
+
     public class CollisionPositionUndoStep : UndoStep
     {
         public Bounds Bounds { get; set; }

@@ -325,16 +325,8 @@ namespace CodeWalker.Project.Panels
 
         private void CalcYmapExtents()
         {
+            if (populatingui) return;
             if (Ymap == null) return;
-
-            var allents = Ymap.AllEntities;
-            var allbatches = Ymap.GrassInstanceBatches;
-
-            if ((allents == null) && (allbatches == null))
-            {
-                MessageBox.Show("No items to calculate extents from.");
-                return;
-            }
 
             lock (ProjectForm.ProjectSyncRoot)
             {
@@ -370,14 +362,13 @@ namespace CodeWalker.Project.Panels
             {
                 lock (ProjectForm.ProjectSyncRoot)
                 {
-                    string ymname = name + ".ymap";
-                    if (Ymap.Name != ymname)
+                    Ymap.SetName(name);
+                    if (!File.Exists(Ymap.FilePath))
                     {
-                        Ymap.Name = ymname;
-                        Ymap._CMapData.name = new MetaHash(hash);
-                        SetYmapHasChanged(true);
-                        UpdateFormTitle();
+                        Ymap.FilePath = name;
                     }
+                    SetYmapHasChanged(true);
+                    UpdateFormTitle();
                 }
             }
         }

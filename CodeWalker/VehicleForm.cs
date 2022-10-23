@@ -101,6 +101,7 @@ namespace CodeWalker
             //Renderer.individualcloudfrag = "Contrails";
             Renderer.rendermoon = false;
             Renderer.renderskeletons = false;
+            Renderer.renderfragwindows = false;
             Renderer.SelectionFlagsTestAll = true;
 
         }
@@ -202,7 +203,7 @@ namespace CodeWalker
 
             //Renderer.RenderBounds(MapSelectionMode.Entity);
 
-            //Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
+            Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
 
             //RenderMoused();
 
@@ -659,6 +660,26 @@ namespace CodeWalker
                             }
                         }
                     }
+
+                    var fdarr = fdrawable.OwnerFragment?.DrawableArray?.data_items;
+                    if (fdarr != null)
+                    {
+                        var fdnames = fdrawable.OwnerFragment?.DrawableArrayNames?.data_items;
+                        for (int i = 0; i < fdarr.Length; i++)
+                        {
+                            var arrd = fdarr[i];
+                            if ((arrd != null) && (arrd.AllModels?.Length > 0))
+                            {
+                                var dname = ((fdnames != null) && (i < fdnames.Length)) ? fdnames[i]?.Value : arrd.Name;
+                                if (string.IsNullOrEmpty(dname)) dname = "(No name)";
+                                AddDrawableModelsTreeNodes(arrd.DrawableModels?.High, dname + " - High Detail", false);
+                                AddDrawableModelsTreeNodes(arrd.DrawableModels?.Med, dname + " - Medium Detail", false);
+                                AddDrawableModelsTreeNodes(arrd.DrawableModels?.Low, dname + " - Low Detail", false);
+                                AddDrawableModelsTreeNodes(arrd.DrawableModels?.VLow, dname + " - Very Low Detail", false);
+                            }
+                        }
+                    }
+
                 }
 
             }
@@ -1329,6 +1350,11 @@ namespace CodeWalker
         private void SkeletonsCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             Renderer.renderskeletons = SkeletonsCheckBox.Checked;
+        }
+
+        private void ShatterMapsCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            Renderer.renderfragwindows = ShatterMapsCheckBox.Checked;
         }
 
         private void ErrorConsoleCheckBox_CheckedChanged(object sender, EventArgs e)

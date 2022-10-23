@@ -130,11 +130,8 @@ namespace CodeWalker.Project.Panels
             if (types == null)
             { return; }
 
-            var stypes = types.GetScenarioTypes();
+            var stypes = types.GetScenarioTypeRefs();
             if (stypes == null) return;
-
-            var stgroups = types.GetScenarioTypeGroups();
-            if (stgroups == null) return;
 
             var pmsets = types.GetPedModelSets();
             if (pmsets == null) return;
@@ -150,17 +147,9 @@ namespace CodeWalker.Project.Panels
             ScenarioChainNodeTypeComboBox.Items.Add("");
             foreach (var stype in stypes)
             {
-                ScenarioTypeRef? typeRef = new ScenarioTypeRef(stype);
-                ScenarioPointTypeComboBox.Items.Add(typeRef);
-                ScenarioClusterPointTypeComboBox.Items.Add(typeRef);
-                ScenarioChainNodeTypeComboBox.Items.Add(typeRef);
-            }
-            foreach (var stgroup in stgroups)
-            {
-                ScenarioTypeRef? typeRef = new ScenarioTypeRef(stgroup);
-                ScenarioPointTypeComboBox.Items.Add(typeRef);
-                ScenarioClusterPointTypeComboBox.Items.Add(typeRef);
-                ScenarioChainNodeTypeComboBox.Items.Add(typeRef);
+                ScenarioPointTypeComboBox.Items.Add(stype);
+                ScenarioClusterPointTypeComboBox.Items.Add(stype);
+                ScenarioChainNodeTypeComboBox.Items.Add(stype);
             }
 
             ScenarioPointModelSetComboBox.Items.Clear();
@@ -180,9 +169,9 @@ namespace CodeWalker.Project.Panels
 
 
             ScenarioEntityPointAvailableInMpSpComboBox.Items.Clear();
-            ScenarioEntityPointAvailableInMpSpComboBox.Items.Add(Unk_3573596290.kBoth);
-            ScenarioEntityPointAvailableInMpSpComboBox.Items.Add(Unk_3573596290.kOnlySp);
-            ScenarioEntityPointAvailableInMpSpComboBox.Items.Add(Unk_3573596290.kOnlyMp);
+            ScenarioEntityPointAvailableInMpSpComboBox.Items.Add(CSpawnPoint__AvailabilityMpSp.kBoth);
+            ScenarioEntityPointAvailableInMpSpComboBox.Items.Add(CSpawnPoint__AvailabilityMpSp.kOnlySp);
+            ScenarioEntityPointAvailableInMpSpComboBox.Items.Add(CSpawnPoint__AvailabilityMpSp.kOnlyMp);
 
 
             ScenarioChainEdgeActionComboBox.Items.Clear();
@@ -290,8 +279,8 @@ namespace CodeWalker.Project.Panels
                 ScenarioEntityPositionTextBox.Text = "";
                 ScenarioEntityTypeTextBox.Text = "";
                 ScenarioEntityTypeHashLabel.Text = "Hash: 0";
-                ScenarioEntityUnk1UpDown.Value = 0;
-                ScenarioEntityUnk2UpDown.Value = 0;
+                ScenarioEntityMayNotAlwaysExistCheckBox.Checked = false;
+                ScenarioEntitySpecificallyPreventArtPointsCheckBox.Checked = false;
                 ScenarioEntityInfoLabel.Text = "0 override points";
                 ScenarioEntityPointsListBox.Items.Clear();
                 ScenarioEntityAddPointButton.Enabled = false;
@@ -305,8 +294,8 @@ namespace CodeWalker.Project.Panels
                 ScenarioEntityPositionTextBox.Text = FloatUtil.GetVector3String(e.Position);
                 ScenarioEntityTypeTextBox.Text = e.TypeName.ToString();
                 ScenarioEntityTypeHashLabel.Text = "Hash: " + e.TypeName.Hash.ToString();
-                ScenarioEntityUnk1UpDown.Value = e.Unk1;
-                ScenarioEntityUnk2UpDown.Value = e.Unk2;
+                ScenarioEntityMayNotAlwaysExistCheckBox.Checked = e.EntityMayNotAlwaysExist;
+                ScenarioEntitySpecificallyPreventArtPointsCheckBox.Checked = e.SpecificallyPreventArtPoints;
                 var pc = e.ScenarioPoints?.Length ?? 0;
                 ScenarioEntityInfoLabel.Text = pc.ToString() + " override point" + ((pc != 1) ? "s" : "");
                 ScenarioEntityPointsListBox.Items.Clear();
@@ -338,7 +327,7 @@ namespace CodeWalker.Project.Panels
                 ScenarioEntityPointNameTextBox.Text = "";
                 ScenarioEntityPointNameHashLabel.Text = "Hash: 0";
                 ScenarioEntityPointPositionTextBox.Text = "";
-                ScenarioEntityPointRotationTextBox.Text = "";
+                ScenarioEntityPointRotationQuatBox.Value = Quaternion.Identity;
                 ScenarioEntityPointSpawnTypeTextBox.Text = "";
                 ScenarioEntityPointSpawnTypeHashLabel.Text = "Hash: 0";
                 ScenarioEntityPointPedTypeTextBox.Text = "";
@@ -373,7 +362,7 @@ namespace CodeWalker.Project.Panels
                 ScenarioEntityPointNameTextBox.Text = p.NameHash.ToString();
                 ScenarioEntityPointNameHashLabel.Text = "Hash: " + p.NameHash.Hash.ToString();
                 ScenarioEntityPointPositionTextBox.Text = FloatUtil.GetVector3String(p.OffsetPosition);
-                ScenarioEntityPointRotationTextBox.Text = FloatUtil.GetVector4String(p.OffsetRotation);
+                ScenarioEntityPointRotationQuatBox.Value = p.OffsetRotation.ToQuaternion();
                 ScenarioEntityPointSpawnTypeTextBox.Text = p.SpawnType.ToString();
                 ScenarioEntityPointSpawnTypeHashLabel.Text = "Hash: " + p.SpawnType.Hash.ToString();
                 ScenarioEntityPointPedTypeTextBox.Text = p.PedType.ToString();
@@ -480,11 +469,11 @@ namespace CodeWalker.Project.Panels
                 ScenarioChainNodeAddToProjectButton.Enabled = false;
                 ScenarioChainNodeDeleteButton.Enabled = false;
                 ScenarioChainNodePositionTextBox.Text = "";
-                ScenarioChainNodeUnk1TextBox.Text = "";
-                ScenarioChainNodeUnk1HashLabel.Text = "Hash: 0";
+                ScenarioChainNodePropTextBox.Text = "";
+                ScenarioChainNodePropHashLabel.Text = "Hash: 0";
                 ScenarioChainNodeTypeComboBox.SelectedItem = null;
-                ScenarioChainNodeFirstCheckBox.Checked = false;
-                ScenarioChainNodeLastCheckBox.Checked = false;
+                ScenarioChainNodeHasIncomingCheckBox.Checked = false;
+                ScenarioChainNodeHasOutgoingCheckBox.Checked = false;
                 ScenarioChainNodeIndexTextBox.Text = "";
             }
             else
@@ -494,11 +483,11 @@ namespace CodeWalker.Project.Panels
                 ScenarioChainNodeDeleteButton.Enabled = ProjectForm.ScenarioExistsInProject(CurrentScenario);
                 ScenarioChainNodeAddToProjectButton.Enabled = !ScenarioChainNodeDeleteButton.Enabled;
                 ScenarioChainNodePositionTextBox.Text = FloatUtil.GetVector3String(n.Position);
-                ScenarioChainNodeUnk1TextBox.Text = n.Unk1.ToString();
-                ScenarioChainNodeUnk1HashLabel.Text = "Hash: " + n.Unk1.Hash.ToString();
+                ScenarioChainNodePropTextBox.Text = n.PropHash.ToString();
+                ScenarioChainNodePropHashLabel.Text = "Hash: " + n.PropHash.Hash.ToString();
                 ScenarioChainNodeTypeComboBox.SelectedItem = ((object)n.Type) ?? "";
-                ScenarioChainNodeFirstCheckBox.Checked = !n.NotFirst;
-                ScenarioChainNodeLastCheckBox.Checked = !n.NotLast;
+                ScenarioChainNodeHasIncomingCheckBox.Checked = n.HasIncomingEdges;
+                ScenarioChainNodeHasOutgoingCheckBox.Checked = n.HasOutgoingEdges;
                 ScenarioChainNodeIndexTextBox.Text = n.NodeIndex.ToString();
             }
         }
@@ -673,7 +662,6 @@ namespace CodeWalker.Project.Panels
                 return;
             }
 
-            chain.RemoveEdge(CurrentScenarioChainEdge);
             paths.RemoveEdge(CurrentScenarioChainEdge);
 
             LoadScenarioChainTabPage();
@@ -838,7 +826,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.MyPoint == null) return;
-            ScenarioTypeRef? stype = ScenarioPointTypeComboBox.SelectedItem as ScenarioTypeRef?;
+            ScenarioTypeRef stype = ScenarioPointTypeComboBox.SelectedItem as ScenarioTypeRef;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.MyPoint.Type != stype)
@@ -1169,33 +1157,33 @@ namespace CodeWalker.Project.Panels
             ProjectForm.ProjectExplorer?.UpdateScenarioNodeTreeNode(CurrentScenarioNode);
         }
 
-        private void ScenarioEntityUnk1UpDown_ValueChanged(object sender, EventArgs e)
+        private void ScenarioEntityMayNotAlwaysExistCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.Entity == null) return;
-            byte v = (byte)ScenarioEntityUnk1UpDown.Value;
+            bool v = ScenarioEntityMayNotAlwaysExistCheckBox.Checked;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CurrentScenarioNode.Entity.Unk1 != v)
+                if (CurrentScenarioNode.Entity.EntityMayNotAlwaysExist != v)
                 {
-                    CurrentScenarioNode.Entity.Unk1 = v;
+                    CurrentScenarioNode.Entity.EntityMayNotAlwaysExist = v;
                     ProjectForm.SetScenarioHasChanged(true);
                 }
             }
         }
 
-        private void ScenarioEntityUnk2UpDown_ValueChanged(object sender, EventArgs e)
+        private void ScenarioEntitySpecificallyPreventArtPointsCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.Entity == null) return;
-            byte v = (byte)ScenarioEntityUnk2UpDown.Value;
+            bool v = ScenarioEntitySpecificallyPreventArtPointsCheckBox.Checked;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CurrentScenarioNode.Entity.Unk2 != v)
+                if (CurrentScenarioNode.Entity.SpecificallyPreventArtPoints != v)
                 {
-                    CurrentScenarioNode.Entity.Unk2 = v;
+                    CurrentScenarioNode.Entity.SpecificallyPreventArtPoints = v;
                     ProjectForm.SetScenarioHasChanged(true);
                 }
             }
@@ -1277,19 +1265,20 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void ScenarioEntityPointRotationTextBox_TextChanged(object sender, EventArgs e)
+        private void ScenarioEntityPointRotationQuatBox_ValueChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.EntityPoint == null) return;
-            Vector4 v = FloatUtil.ParseVector4String(ScenarioEntityPointRotationTextBox.Text);
+            Quaternion q = ScenarioEntityPointRotationQuatBox.Value;
+            Vector4 v = q.ToVector4();
             bool change = false;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.EntityPoint.OffsetRotation != v)
                 {
                     CurrentScenarioNode.EntityPoint.OffsetRotation = v;
-                    CurrentScenarioNode.Orientation = new Quaternion(v);
+                    CurrentScenarioNode.Orientation = q;
                     ProjectForm.SetScenarioHasChanged(true);
                     change = true;
                 }
@@ -1449,7 +1438,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.EntityPoint == null) return;
-            Unk_3573596290 v = (Unk_3573596290)ScenarioEntityPointAvailableInMpSpComboBox.SelectedItem;
+            var v = (CSpawnPoint__AvailabilityMpSp)ScenarioEntityPointAvailableInMpSpComboBox.SelectedItem;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.EntityPoint.AvailableInMpSp != v)
@@ -1694,24 +1683,24 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void ScenarioChainNodeUnk1TextBox_TextChanged(object sender, EventArgs e)
+        private void ScenarioChainNodePropTextBox_TextChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ChainingNode == null) return;
             uint hash = 0;
-            string name = ScenarioChainNodeUnk1TextBox.Text;
+            string name = ScenarioChainNodePropTextBox.Text;
             if (!uint.TryParse(name, out hash))//don't re-hash hashes
             {
                 hash = JenkHash.GenHash(name);
                 JenkIndex.Ensure(name);
             }
-            ScenarioChainNodeUnk1HashLabel.Text = "Hash: " + hash.ToString();
+            ScenarioChainNodePropHashLabel.Text = "Hash: " + hash.ToString();
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CurrentScenarioNode.ChainingNode.Unk1 != hash)
+                if (CurrentScenarioNode.ChainingNode.PropHash != hash)
                 {
-                    CurrentScenarioNode.ChainingNode.Unk1 = hash;
+                    CurrentScenarioNode.ChainingNode.PropHash = hash;
                     ProjectForm.SetScenarioHasChanged(true);
                 }
             }
@@ -1722,7 +1711,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ChainingNode == null) return;
-            ScenarioTypeRef? stype = ScenarioChainNodeTypeComboBox.SelectedItem as ScenarioTypeRef?;
+            ScenarioTypeRef stype = ScenarioChainNodeTypeComboBox.SelectedItem as ScenarioTypeRef;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.ChainingNode.Type != stype)
@@ -1735,18 +1724,18 @@ namespace CodeWalker.Project.Panels
             ProjectForm.ProjectExplorer?.UpdateScenarioNodeTreeNode(CurrentScenarioNode);
         }
 
-        private void ScenarioChainNodeFirstCheckBox_CheckedChanged(object sender, EventArgs e)
+        private void ScenarioChainNodeHasIncomingCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ChainingNode == null) return;
-            bool v = !ScenarioChainNodeFirstCheckBox.Checked;
+            bool v = ScenarioChainNodeHasIncomingCheckBox.Checked;
             bool change = false;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CurrentScenarioNode.ChainingNode.NotFirst != v)
+                if (CurrentScenarioNode.ChainingNode.HasIncomingEdges != v)
                 {
-                    CurrentScenarioNode.ChainingNode.NotFirst = v;
+                    CurrentScenarioNode.ChainingNode.HasIncomingEdges = v;
                     ProjectForm.SetScenarioHasChanged(true);
                     change = true;
                 }
@@ -1760,18 +1749,18 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void ScenarioChainNodeLastCheckBox_CheckedChanged(object sender, EventArgs e)
+        private void ScenarioChainNodeHasOutgoingCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ChainingNode == null) return;
-            bool v = !ScenarioChainNodeLastCheckBox.Checked;
+            bool v = ScenarioChainNodeHasOutgoingCheckBox.Checked;
             bool change = false;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CurrentScenarioNode.ChainingNode.NotLast != v)
+                if (CurrentScenarioNode.ChainingNode.HasOutgoingEdges != v)
                 {
-                    CurrentScenarioNode.ChainingNode.NotLast = v;
+                    CurrentScenarioNode.ChainingNode.HasOutgoingEdges = v;
                     ProjectForm.SetScenarioHasChanged(true);
                     change = true;
                 }
@@ -2144,7 +2133,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ClusterMyPoint == null) return;
-            ScenarioTypeRef? stype = ScenarioClusterPointTypeComboBox.SelectedItem as ScenarioTypeRef?;
+            ScenarioTypeRef stype = ScenarioClusterPointTypeComboBox.SelectedItem as ScenarioTypeRef;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.ClusterMyPoint.Type != stype)
@@ -2405,8 +2394,6 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-
-
 
     }
 }

@@ -62,6 +62,11 @@ namespace CodeWalker.GameFiles
                 YndFile ynd = RpfFile.GetFile<YndFile>(e, data);
                 return GetXml(ynd, out filename);
             }
+            else if (fnl.EndsWith(".ynv"))
+            {
+                YnvFile ynv = RpfFile.GetFile<YnvFile>(e, data);
+                return GetXml(ynv, out filename);
+            }
             else if (fnl.EndsWith(".ycd"))
             {
                 YcdFile ycd = RpfFile.GetFile<YcdFile>(e, data);
@@ -100,12 +105,52 @@ namespace CodeWalker.GameFiles
             else if (fnl.EndsWith(".yld"))
             {
                 YldFile yld = RpfFile.GetFile<YldFile>(e, data);
-                return GetXml(yld, out filename, outputfolder);
+                return GetXml(yld, out filename);
+            }
+            else if (fnl.EndsWith(".yed"))
+            {
+                YedFile yed = RpfFile.GetFile<YedFile>(e, data);
+                return GetXml(yed, out filename);
+            }
+            else if (fnl.EndsWith(".ywr"))
+            {
+                YwrFile ywr = RpfFile.GetFile<YwrFile>(e, data);
+                return GetXml(ywr, out filename);
+            }
+            else if (fnl.EndsWith(".yvr"))
+            {
+                YvrFile yvr = RpfFile.GetFile<YvrFile>(e, data);
+                return GetXml(yvr, out filename);
+            }
+            else if (fnl.EndsWith(".ypdb"))
+            {
+                YpdbFile ypdb = RpfFile.GetFile<YpdbFile>(e, data);
+                return GetXml(ypdb, out filename);
             }
             else if (fnl.EndsWith(".awc"))
             {
                 AwcFile awc = RpfFile.GetFile<AwcFile>(e, data);
                 return GetXml(awc, out filename, outputfolder);
+            }
+            else if (fnl.EndsWith(".fxc"))
+            {
+                FxcFile fxc = RpfFile.GetFile<FxcFile>(e, data);
+                return GetXml(fxc, out filename, outputfolder);
+            }
+            else if (fnl.EndsWith("cache_y.dat"))
+            {
+                CacheDatFile cdf = RpfFile.GetFile<CacheDatFile>(e, data);
+                return GetXml(cdf, out filename, outputfolder);
+            }
+            else if (fnl.EndsWith(".dat") && fnl.StartsWith("heightmap"))
+            {
+                HeightmapFile hmf = RpfFile.GetFile<HeightmapFile>(e, data);
+                return GetXml(hmf, out filename, outputfolder);
+            }
+            else if (fnl.EndsWith(".mrf"))
+            {
+                MrfFile mrf = RpfFile.GetFile<MrfFile>(e, data);
+                return GetXml(mrf, out filename, outputfolder);
             }
             filename = fn;
             return string.Empty;
@@ -172,6 +217,12 @@ namespace CodeWalker.GameFiles
             filename = fn + ".xml";
             return YndXml.GetXml(ynd);
         }
+        public static string GetXml(YnvFile ynv, out string filename)
+        {
+            var fn = (ynv?.RpfFileEntry?.Name) ?? "";
+            filename = fn + ".xml";
+            return YnvXml.GetXml(ynv);
+        }
         public static string GetXml(YcdFile ycd, out string filename)
         {
             var fn = (ycd?.RpfFileEntry?.Name) ?? "";
@@ -214,17 +265,65 @@ namespace CodeWalker.GameFiles
             filename = fn + ".xml";
             return YptXml.GetXml(ypt, outputfolder);
         }
-        public static string GetXml(YldFile yld, out string filename, string outputfolder)
+        public static string GetXml(YldFile yld, out string filename)
         {
             var fn = (yld?.Name) ?? "";
             filename = fn + ".xml";
-            return YldXml.GetXml(yld, outputfolder);
+            return YldXml.GetXml(yld);
+        }
+        public static string GetXml(YedFile yed, out string filename)
+        {
+            var fn = (yed?.Name) ?? "";
+            filename = fn + ".xml";
+            return YedXml.GetXml(yed);
+        }
+        public static string GetXml(YwrFile ywr, out string filename)
+        {
+            var fn = (ywr?.Name) ?? "";
+            filename = fn + ".xml";
+            return YwrXml.GetXml(ywr);
+        }
+        public static string GetXml(YvrFile yvr, out string filename)
+        {
+            var fn = (yvr?.Name) ?? "";
+            filename = fn + ".xml";
+            return YvrXml.GetXml(yvr);
+        }
+        public static string GetXml(YpdbFile ypdb, out string filename)
+        {
+            var fn = (ypdb?.Name) ?? "";
+            filename = fn + ".xml";
+            return YpdbXml.GetXml(ypdb);
         }
         public static string GetXml(AwcFile awc, out string filename, string outputfolder)
         {
             var fn = (awc?.Name) ?? "";
             filename = fn + ".xml";
             return AwcXml.GetXml(awc, outputfolder);
+        }
+        public static string GetXml(FxcFile fxc, out string filename, string outputfolder)
+        {
+            var fn = (fxc?.Name) ?? "";
+            filename = fn + ".xml";
+            return FxcXml.GetXml(fxc, outputfolder);
+        }
+        public static string GetXml(CacheDatFile cdf, out string filename, string outputfolder)
+        {
+            var fn = (cdf?.FileEntry?.Name) ?? "";
+            filename = fn + ".xml";
+            return CacheDatXml.GetXml(cdf);
+        }
+        public static string GetXml(HeightmapFile hmf, out string filename, string outputfolder)
+        {
+            var fn = (hmf?.Name) ?? "";
+            filename = fn + ".xml";
+            return HmapXml.GetXml(hmf);
+        }
+        public static string GetXml(MrfFile mrf, out string filename, string outputfolder)
+        {
+            var fn = (mrf?.Name) ?? "";
+            filename = fn + ".xml";
+            return MrfXml.GetXml(mrf);
         }
 
 
@@ -2127,15 +2226,23 @@ namespace CodeWalker.GameFiles
         CacheFile = 4,
         AudioRel = 5,
         Ynd = 6,
-        Ycd = 7,
-        Ybn = 8,
-        Ytd = 9,
-        Ydr = 10,
-        Ydd = 11,
-        Yft = 12,
-        Ypt = 13,
-        Yld = 14,
-        Awc = 15,
+        Ynv = 7,
+        Ycd = 8,
+        Ybn = 9,
+        Ytd = 10,
+        Ydr = 11,
+        Ydd = 12,
+        Yft = 13,
+        Ypt = 14,
+        Yld = 15,
+        Yed = 16,
+        Ywr = 17,
+        Yvr = 18,
+        Awc = 19,
+        Fxc = 20,
+        Heightmap = 21,
+        Ypdb = 22,
+        Mrf = 23,
     }
 
 }

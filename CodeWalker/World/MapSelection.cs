@@ -28,12 +28,16 @@ namespace CodeWalker
         NavMesh = 9,
         Path = 10,
         TrainTrack = 11,
-        DistantLodLights = 12,
+        LodLights = 12,
         MloInstance = 13,
         Scenario = 14,
         PopZone = 15,
-        Audio = 16,
-        Occlusion = 17,
+        Heightmap = 16,
+        Watermap = 17,
+        Audio = 18,
+        Occlusion = 19,
+        CalmingQuad = 20,
+        WaveQuad = 21,
     }
 
 
@@ -50,12 +54,14 @@ namespace CodeWalker
         public YmapTimeCycleModifier TimeCycleModifier { get; set; }
         public YmapCarGen CarGenerator { get; set; }
         public YmapGrassInstanceBatch GrassBatch { get; set; }
-        public YmapDistantLODLights DistantLodLights { get; set; }
+        public YmapLODLight LodLight { get; set; }
         public YmapBoxOccluder BoxOccluder { get; set; }
-        public YmapOccludeModel OccludeModel { get; set; }
+        public YmapOccludeModelTriangle OccludeModelTri { get; set; }
         public YmapEntityDef MloEntityDef { get; set; }
         public MCMloRoomDef MloRoomDef { get; set; }
         public WaterQuad WaterQuad { get; set; }
+        public WaterCalmingQuad CalmingQuad { get; set; }
+        public WaterWaveQuad WaveQuad { get; set; }
         public Bounds CollisionBounds { get; set; }
         public BoundPolygon CollisionPoly { get; set; }
         public BoundVertex CollisionVertex { get; set; }
@@ -98,6 +104,8 @@ namespace CodeWalker
                     (CarGenerator != null) ||
                     (GrassBatch != null) ||
                     (WaterQuad != null) ||
+                    (CalmingQuad != null) ||
+                    (WaveQuad != null) ||
                     (CollisionBounds != null) ||
                     (CollisionPoly != null) ||
                     (CollisionVertex != null) ||
@@ -106,9 +114,9 @@ namespace CodeWalker
                     (NavPortal != null) ||
                     (PathNode != null) ||
                     (TrainTrackNode != null) ||
-                    (DistantLodLights != null) ||
+                    (LodLight != null) ||
                     (BoxOccluder != null) ||
-                    (OccludeModel != null) ||
+                    (OccludeModelTri != null) ||
                     (MloEntityDef != null) ||
                     (ScenarioNode != null) ||
                     (Audio != null) ||
@@ -132,11 +140,13 @@ namespace CodeWalker
                 || (EntityExtension != mhit.EntityExtension)
                 || (CarGenerator != mhit.CarGenerator)
                 || (MloEntityDef != mhit.MloEntityDef)
-                || (DistantLodLights != mhit.DistantLodLights)
+                || (LodLight != mhit.LodLight)
                 || (GrassBatch != mhit.GrassBatch)
                 || (BoxOccluder != mhit.BoxOccluder)
-                || (OccludeModel != mhit.OccludeModel)
+                || (OccludeModelTri != mhit.OccludeModelTri)
                 || (WaterQuad != mhit.WaterQuad)
+                || (CalmingQuad != mhit.CalmingQuad)
+                || (WaveQuad != mhit.WaveQuad)
                 || (CollisionBounds != mhit.CollisionBounds)
                 || (CollisionPoly != mhit.CollisionPoly)
                 || (CollisionVertex != mhit.CollisionVertex)
@@ -159,11 +169,13 @@ namespace CodeWalker
                 || (EntityExtension != null)
                 || (CarGenerator != null)
                 || (MloEntityDef != null)
-                || (DistantLodLights != null)
+                || (LodLight != null)
                 || (GrassBatch != null)
                 || (BoxOccluder != null)
-                || (OccludeModel != null)
+                || (OccludeModelTri != null)
                 || (WaterQuad != null)
+                || (CalmingQuad != null)
+                || (WaveQuad != null)
                 || (CollisionBounds != null)
                 || (CollisionPoly != null)
                 || (CollisionVertex != null)
@@ -191,8 +203,10 @@ namespace CodeWalker
             CarGenerator = null;
             GrassBatch = null;
             BoxOccluder = null;
-            OccludeModel = null;
+            OccludeModelTri = null;
             WaterQuad = null;
+            CalmingQuad = null;
+            WaveQuad = null;
             CollisionBounds = null;
             CollisionPoly = null;
             CollisionVertex = null;
@@ -202,7 +216,7 @@ namespace CodeWalker
             PathNode = null;
             PathLink = null;
             TrainTrackNode = null;
-            DistantLodLights = null;
+            LodLight = null;
             MloEntityDef = null;
             ScenarioNode = null;
             ScenarioEdge = null;
@@ -259,21 +273,29 @@ namespace CodeWalker
             {
                 name = (GrassBatch.Ymap?.Name ?? "") + ": " + GrassBatch.Archetype?.Name ?? "";
             }
-            else if (DistantLodLights != null)
+            else if (LodLight != null)
             {
-                name = DistantLodLights.Ymap?.Name ?? "";
+                name = (LodLight.Ymap?.Name ?? "") + ": " + LodLight.Index.ToString();
             }
             else if (BoxOccluder != null)
             {
                 name = "BoxOccluder " + (BoxOccluder.Ymap?.Name ?? "") + ": " + BoxOccluder.Index.ToString();
             }
-            else if (OccludeModel != null)
+            else if (OccludeModelTri != null)
             {
-                name = "OccludeModel " + (OccludeModel.Ymap?.Name ?? "") + ": " + OccludeModel.Index.ToString();
+                name = "OccludeModel " + (OccludeModelTri.Ymap?.Name ?? "") + ": " + (OccludeModelTri.Model?.Index??0).ToString() + ":" + OccludeModelTri.Index.ToString();
             }
             else if (WaterQuad != null)
             {
                 name = "WaterQuad " + WaterQuad.ToString();
+            }
+            else if (CalmingQuad != null)
+            {
+                name = "WaterCalmingQuad " + CalmingQuad.ToString();
+            }
+            else if (WaveQuad != null)
+            {
+                name = "WaterWaveQuad " + WaveQuad.ToString();
             }
             else if (NavPoly != null)
             {
@@ -334,6 +356,9 @@ namespace CodeWalker
             if (MultipleSelectionItems != null) return true;
             if (EntityDef != null) return true;
             if (CarGenerator != null) return true;
+            if (LodLight != null) return true;
+            if (BoxOccluder != null) return true;
+            if (OccludeModelTri != null) return true;
             if (CollisionBounds != null) return true;
             if (CollisionPoly != null) return true;
             if (CollisionVertex != null) return true;
@@ -411,6 +436,33 @@ namespace CodeWalker
                     case WidgetMode.Scale: return new CarGenScaleUndoStep(CarGenerator, startScale);
                 }
             }
+            else if (LodLight != null)
+            {
+                switch (mode)
+                {
+                    case WidgetMode.Position: return new LodLightPositionUndoStep(LodLight, startPos);
+                    case WidgetMode.Rotation: return new LodLightRotationUndoStep(LodLight, startRot);
+                    case WidgetMode.Scale: return new LodLightScaleUndoStep(LodLight, startScale);
+                }
+            }
+            else if (BoxOccluder != null)
+            {
+                switch (mode)
+                {
+                    case WidgetMode.Position: return new BoxOccluderPositionUndoStep(BoxOccluder, startPos);
+                    case WidgetMode.Rotation: return new BoxOccluderRotationUndoStep(BoxOccluder, startRot);
+                    case WidgetMode.Scale: return new BoxOccluderScaleUndoStep(BoxOccluder, startScale);
+                }
+            }
+            else if (OccludeModelTri != null)
+            {
+                switch (mode)
+                {
+                    case WidgetMode.Position: return new OccludeModelTriPositionUndoStep(OccludeModelTri, startPos);
+                    case WidgetMode.Rotation: return new OccludeModelTriRotationUndoStep(OccludeModelTri, startRot);
+                    case WidgetMode.Scale: return new OccludeModelTriScaleUndoStep(OccludeModelTri, startScale);
+                }
+            }
             else if (PathNode != null)
             {
                 switch (mode)
@@ -479,6 +531,18 @@ namespace CodeWalker
                     res = true;
                 }
                 else if (CarGenerator != null)
+                {
+                    res = true;
+                }
+                else if (LodLight != null)
+                {
+                    res = true;
+                }
+                else if (BoxOccluder != null)
+                {
+                    res = true;
+                }
+                else if (OccludeModelTri != null)
                 {
                     res = true;
                 }
@@ -556,6 +620,18 @@ namespace CodeWalker
                 {
                     return CarGenerator.Position;
                 }
+                else if (LodLight != null)
+                {
+                    return LodLight.Position;
+                }
+                else if (BoxOccluder != null)
+                {
+                    return BoxOccluder.Position;
+                }
+                else if (OccludeModelTri != null)
+                {
+                    return OccludeModelTri.Center;
+                }
                 else if (NavPoly != null)
                 {
                     return NavPoly.Position;
@@ -618,6 +694,18 @@ namespace CodeWalker
                 {
                     return CarGenerator.Orientation;
                 }
+                else if (LodLight != null)
+                {
+                    return LodLight.Orientation;
+                }
+                else if (BoxOccluder != null)
+                {
+                    return BoxOccluder.Orientation;
+                }
+                else if (OccludeModelTri != null)
+                {
+                    return OccludeModelTri.Orientation;
+                }
                 else if (NavPoly != null)
                 {
                     return Quaternion.Identity;
@@ -676,6 +764,18 @@ namespace CodeWalker
                 else if (CarGenerator != null)
                 {
                     return WidgetAxis.Z;
+                }
+                else if (LodLight != null)
+                {
+                    return WidgetAxis.XYZ;
+                }
+                else if (BoxOccluder != null)
+                {
+                    return WidgetAxis.Z;
+                }
+                else if (OccludeModelTri != null)
+                {
+                    return WidgetAxis.XYZ;
                 }
                 else if (NavPoly != null)
                 {
@@ -736,6 +836,18 @@ namespace CodeWalker
                 {
                     return new Vector3(CarGenerator.CCarGen.perpendicularLength);
                 }
+                else if (LodLight != null)
+                {
+                    return LodLight.Scale;
+                }
+                else if (BoxOccluder != null)
+                {
+                    return BoxOccluder.Size;
+                }
+                else if (OccludeModelTri != null)
+                {
+                    return OccludeModelTri.Scale;
+                }
                 else if (NavPoly != null)
                 {
                     return Vector3.One;
@@ -779,6 +891,14 @@ namespace CodeWalker
                     }
                     return false;
                 }
+                if (BoxOccluder != null)
+                {
+                    return false;
+                }
+                if (OccludeModelTri != null)
+                {
+                    return false;
+                }
                 if (CollisionBounds != null)
                 {
                     return false;
@@ -808,6 +928,9 @@ namespace CodeWalker
                 else if (CollisionBounds != null) return true;
                 else if (EntityDef != null) return true;
                 else if (CarGenerator != null) return true;
+                else if (LodLight != null) return true;
+                else if (BoxOccluder != null) return true;
+                else if (OccludeModelTri != null) return true;
                 else if (PathNode != null) return true;
                 else if (NavPoly != null) return true;
                 else if (NavPoint != null) return true;
@@ -925,6 +1048,18 @@ namespace CodeWalker
             {
                 CarGenerator.SetPosition(newpos);
             }
+            else if (LodLight != null)
+            {
+                LodLight.SetPosition(newpos);
+            }
+            else if (BoxOccluder != null)
+            {
+                BoxOccluder.Position = newpos;
+            }
+            else if (OccludeModelTri != null)
+            {
+                OccludeModelTri.Center = newpos;
+            }
             else if (PathNode != null)
             {
                 PathNode.SetPosition(newpos);
@@ -1033,6 +1168,18 @@ namespace CodeWalker
             {
                 CarGenerator.SetOrientation(newrot);
             }
+            else if (LodLight != null)
+            {
+                LodLight.SetOrientation(newrot);
+            }
+            else if (BoxOccluder != null)
+            {
+                BoxOccluder.Orientation = newrot;
+            }
+            else if (OccludeModelTri != null)
+            {
+                OccludeModelTri.Orientation = newrot;
+            }
             else if (ScenarioNode != null)
             {
                 ScenarioNode.SetOrientation(newrot);
@@ -1120,6 +1267,18 @@ namespace CodeWalker
                 CarGenerator.SetScale(newscale);
                 AABB = new BoundingBox(CarGenerator.BBMin, CarGenerator.BBMax);
             }
+            else if (LodLight != null)
+            {
+                LodLight.SetScale(newscale);
+            }
+            else if (BoxOccluder != null)
+            {
+                BoxOccluder.SetSize(newscale);
+            }
+            else if (OccludeModelTri != null)
+            {
+                OccludeModelTri.Scale = newscale;
+            }
         }
 
 
@@ -1160,11 +1319,14 @@ namespace CodeWalker
         {
             if (MultipleSelectionItems != null)
             {
-                Dictionary<YndFile, int> pathYnds = new Dictionary<YndFile, int>();
-                Dictionary<YnvFile, int> navYnvs = new Dictionary<YnvFile, int>();
-                Dictionary<TrainTrack, int> trainTracks = new Dictionary<TrainTrack, int>();
-                Dictionary<YmtFile, int> scenarioYmts = new Dictionary<YmtFile, int>();
-                Dictionary<Bounds, int> bounds = new Dictionary<Bounds, int>();
+                var pathYnds = new Dictionary<YndFile, int>();
+                var navYnvs = new Dictionary<YnvFile, int>();
+                var trainTracks = new Dictionary<TrainTrack, int>();
+                var scenarioYmts = new Dictionary<YmtFile, int>();
+                var bounds = new Dictionary<Bounds, int>();
+                var lodlights = new Dictionary<YmapLODLights, int>();
+                var boxoccls = new Dictionary<YmapBoxOccluder, int>();
+                var occlmods = new Dictionary<YmapOccludeModel, int>();
 
                 foreach (var item in MultipleSelectionItems)
                 {
@@ -1204,6 +1366,18 @@ namespace CodeWalker
                     {
                         bounds[item.CollisionVertex.Owner] = 1;
                     }
+                    if (item.LodLight?.LodLights != null)
+                    {
+                        lodlights[item.LodLight.LodLights] = 1;
+                    }
+                    if (item.BoxOccluder != null)
+                    {
+                        boxoccls[item.BoxOccluder] = 1;
+                    }
+                    if (item.OccludeModelTri?.Model != null)
+                    {
+                        occlmods[item.OccludeModelTri.Model] = 1;
+                    }
                 }
                 foreach (var kvp in bounds)
                 {
@@ -1211,7 +1385,7 @@ namespace CodeWalker
                 }
                 foreach (var kvp in pathYnds)
                 {
-                    wf.UpdatePathYndGraphics(kvp.Key, true);
+                    wf.UpdatePathYndGraphics(kvp.Key, false);
                 }
                 foreach (var kvp in navYnvs)
                 {
@@ -1225,12 +1399,27 @@ namespace CodeWalker
                 {
                     wf.UpdateScenarioGraphics(kvp.Key, false);
                 }
+                foreach (var kvp in lodlights)
+                {
+                    if ((kvp.Key.LodLights != null) && (kvp.Key.LodLights.Length > 0))
+                    {
+                        wf.UpdateLodLightGraphics(kvp.Key.LodLights[0]);
+                    }
+                }
+                foreach (var kvp in boxoccls)
+                {
+                    wf.UpdateBoxOccluderGraphics(kvp.Key);
+                }
+                foreach (var kvp in occlmods)
+                {
+                    wf.UpdateOccludeModelGraphics(kvp.Key);
+                }
             }
             else
             {
                 if (PathNode != null)
                 {
-                    wf.UpdatePathYndGraphics(PathNode.Ynd, true);
+                    wf.UpdatePathYndGraphics(PathNode.Ynd, false);
                 }
                 if (NavPoly != null)
                 {
@@ -1264,6 +1453,18 @@ namespace CodeWalker
                 {
                     wf.UpdateCollisionBoundsGraphics(CollisionBounds);
                 }
+                else if (LodLight != null)
+                {
+                    wf.UpdateLodLightGraphics(LodLight);
+                }
+                else if (BoxOccluder != null)
+                {
+                    wf.UpdateBoxOccluderGraphics(BoxOccluder);
+                }
+                else if (OccludeModelTri?.Model != null)
+                {
+                    wf.UpdateOccludeModelGraphics(OccludeModelTri?.Model);
+                }
             }
         }
 
@@ -1276,6 +1477,9 @@ namespace CodeWalker
             else if (CollisionBounds != null) return CollisionBounds;
             else if (EntityDef != null) return EntityDef;
             else if (CarGenerator != null) return CarGenerator;
+            else if (LodLight != null) return LodLight;
+            else if (BoxOccluder != null) return BoxOccluder;
+            else if (OccludeModelTri != null) return OccludeModelTri;
             else if (PathNode != null) return PathNode;
             else if (NavPoly != null) return NavPoly;
             else if (NavPoint != null) return NavPoint;
@@ -1314,6 +1518,21 @@ namespace CodeWalker
             {
                 ms.CarGenerator = cargen;
                 ms.AABB = new BoundingBox(cargen.BBMin, cargen.BBMax);
+            }
+            else if (o is YmapLODLight lodlight)
+            {
+                ms.LodLight = lodlight;
+                ms.AABB = new BoundingBox(new Vector3(-nrad), new Vector3(nrad));
+            }
+            else if (o is YmapBoxOccluder boxoccl)
+            {
+                ms.BoxOccluder = boxoccl;
+                ms.AABB = new BoundingBox(boxoccl.BBMin, boxoccl.BBMax);
+            }
+            else if (o is YmapOccludeModelTriangle occltri)
+            {
+                ms.OccludeModelTri = occltri;
+                ms.AABB = new BoundingBox(occltri.Box.Minimum, occltri.Box.Maximum);
             }
             else if (o is YmapGrassInstanceBatch batch)
             {

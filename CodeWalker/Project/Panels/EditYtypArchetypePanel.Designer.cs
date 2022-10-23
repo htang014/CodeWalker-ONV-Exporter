@@ -68,11 +68,13 @@
             this.TimeFlagsTextBox = new System.Windows.Forms.TextBox();
             this.TimeFlagsCheckedListBox = new System.Windows.Forms.CheckedListBox();
             this.label15 = new System.Windows.Forms.Label();
+            this.MloUpdatePortalCountsButton = new System.Windows.Forms.Button();
             this.BaseArchetypeTabPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.SpecialAttributeNumericUpDown)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.HDTextureDistNumericUpDown)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.LodDistNumericUpDown)).BeginInit();
             this.TabControl.SuspendLayout();
+            this.MloArchetypeTabPage.SuspendLayout();
             this.TimeArchetypeTabPage.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -302,17 +304,17 @@
             "16 - Unk05",
             "32 - Static",
             "64 - Unk07",
-            "128 - Unk08",
+            "128 - Instance",
             "256 - Unk09",
-            "512 - Unk10",
-            "1024 - Unk11",
+            "512 - Bone anims (YCD)",
+            "1024 - UV anims (YCD)",
             "2048 - Unk12",
             "4096 - Unk13",
-            "8192 - Unk14",
+            "8192 - Object won\'t cast shadow",
             "16384 - Unk15",
             "32768 - Unk16",
-            "65536 - Unk17",
-            "131072 - Unk18",
+            "65536 - Double-sided rendering",
+            "131072 - Dynamic",
             "262144 - Unk19",
             "524288 - Unk20",
             "1048576 - Unk21",
@@ -321,12 +323,12 @@
             "8388608 - Unk24",
             "16777216 - Unk25",
             "33554432 - Unk26",
-            "67108864 - Unk27",
+            "67108864 - Enables special atribute for door archetypes",
             "134217728 - Unk28",
-            "268435456 - Unk29",
-            "536870912 - Unk30",
-            "1073741824 - Unk31",
-            "2147483648 - Unk32"});
+            "268435456 - Disable red vertex channel",
+            "536870912 - Disable green vertex channel",
+            "1073741824 - Disable blue vertex channel",
+            "2147483648 - Disable alpha vertex channel"});
             this.EntityFlagsCheckedListBox.Location = new System.Drawing.Point(441, 38);
             this.EntityFlagsCheckedListBox.Name = "EntityFlagsCheckedListBox";
             this.EntityFlagsCheckedListBox.Size = new System.Drawing.Size(182, 274);
@@ -496,6 +498,7 @@
             // 
             // MloArchetypeTabPage
             // 
+            this.MloArchetypeTabPage.Controls.Add(this.MloUpdatePortalCountsButton);
             this.MloArchetypeTabPage.Location = new System.Drawing.Point(4, 22);
             this.MloArchetypeTabPage.Name = "MloArchetypeTabPage";
             this.MloArchetypeTabPage.Padding = new System.Windows.Forms.Padding(3);
@@ -578,6 +581,16 @@
             this.label15.TabIndex = 68;
             this.label15.Text = "Time Flags:";
             // 
+            // MloUpdatePortalCountsButton
+            // 
+            this.MloUpdatePortalCountsButton.Location = new System.Drawing.Point(49, 35);
+            this.MloUpdatePortalCountsButton.Name = "MloUpdatePortalCountsButton";
+            this.MloUpdatePortalCountsButton.Size = new System.Drawing.Size(153, 23);
+            this.MloUpdatePortalCountsButton.TabIndex = 0;
+            this.MloUpdatePortalCountsButton.Text = "Update Portal Counts";
+            this.MloUpdatePortalCountsButton.UseVisualStyleBackColor = true;
+            this.MloUpdatePortalCountsButton.Click += new System.EventHandler(this.MloUpdatePortalCountsButton_Click);
+            // 
             // EditYtypArchetypePanel
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -595,6 +608,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.HDTextureDistNumericUpDown)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.LodDistNumericUpDown)).EndInit();
             this.TabControl.ResumeLayout(false);
+            this.MloArchetypeTabPage.ResumeLayout(false);
             this.TimeArchetypeTabPage.ResumeLayout(false);
             this.TimeArchetypeTabPage.PerformLayout();
             this.ResumeLayout(false);
@@ -642,5 +656,6 @@
         private System.Windows.Forms.TextBox TimeFlagsTextBox;
         private System.Windows.Forms.CheckedListBox TimeFlagsCheckedListBox;
         private System.Windows.Forms.Label label15;
+        private System.Windows.Forms.Button MloUpdatePortalCountsButton;
     }
 }

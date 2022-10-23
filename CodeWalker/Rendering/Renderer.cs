@@ -111,6 +111,7 @@ namespace CodeWalker.Rendering
         public bool renderlodlights = true; //render LOD lights from ymaps
         public bool renderdistlodlights = true; //render distant lod lights (coronas)
         public bool rendercars = false;
+        public bool renderfragwindows = false; //render selection geometry for window glass data in fragments 
 
         public bool rendercollisionmeshes = Settings.Default.ShowCollisionMeshes;
         public bool rendercollisionmeshlayerdrawable = true;
@@ -408,6 +409,10 @@ namespace CodeWalker.Rendering
         {
             renderableCache.Invalidate(batch);
         }
+        public void Invalidate(YmapLODLight lodlight)
+        {
+            renderableCache.Invalidate(lodlight);
+        }
 
 
         public void UpdateSelectionDrawFlags(DrawableModel model, DrawableGeometry geom, bool rem)
@@ -545,7 +550,7 @@ namespace CodeWalker.Rendering
                     lightartificialdowncolour = (Color4)weather.CurrentValues.lightArtificialExtDown;
                     float lamult = weather.CurrentValues.lightDirAmbIntensityMult;
                     float abounce = weather.CurrentValues.lightDirAmbBounce;
-                    float minmult = hdr ? 0.1f : 0.5f;
+                    float minmult = hdr ? 0.0f : 0.5f;
                     lightdircolour *= Math.Max(lightdircolour.Alpha, minmult);
                     lightdirambcolour *= lightdirambcolour.Alpha * lamult; // 0.1f * lamult;
 
@@ -862,6 +867,133 @@ namespace CodeWalker.Rendering
             }
         }
 
+        public void RenderSelectionCircle(Vector3 position, Vector3 ax, Vector3 ay, float radius, uint col)
+        {
+            const int Reso = 36;
+            const float MaxDeg = 360f;
+            const float DegToRad = 0.0174533f;
+            const float Ang = DegToRad * MaxDeg / Reso;
+
+            var c = new VertexTypePC[Reso];
+
+            for (var i = 0; i < Reso; i++)
+            {
+                var a = i * Ang;
+                var x = (float)Math.Sin(a);
+                var y = (float)Math.Cos(a);
+                c[i].Position = position + (ax * (x * radius)) + (ay * (y * radius));
+                c[i].Colour = col;
+            }
+
+            for (var i = 0; i < c.Length; i++)
+            {
+                SelectionLineVerts.Add(c[i]);
+                SelectionLineVerts.Add(c[(i + 1) % c.Length]);
+            }
+        }
+
+        public void RenderSelectionArc(Vector3 position, Vector3 ax, Vector3 ay, float radius, float angle, uint col)
+        {
+            int res = (int)(angle * 0.1f);
+            const float DegToRad = 0.0174533f;
+            float ang = DegToRad * angle / res;
+
+            var c = new VertexTypePC[res+1];
+
+            for (var i = 0; i <= res; i++)
+            {
+                var a = i * ang;
+                var x = (float)Math.Sin(a);
+                var y = (float)Math.Cos(a);
+                c[i].Position = position + (ax * (x * radius)) + (ay * (y * radius));
+                c[i].Colour = col;
+            }
+
+            for (var i = 1; i < c.Length; i++)
+            {
+                SelectionLineVerts.Add(c[i-1]);
+                SelectionLineVerts.Add(c[i]);
+            }
+        }
+
+        public void RenderSelectionLine(Vector3 p1, Vector3 p2, uint col)
+        {
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p1, Colour = col });
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p2, Colour = col });
+        }
+
+        public void RenderSelectionQuad(Vector3 p1, Vector3 p2, Vector3 p3, Vector3 p4, uint col)
+        {
+            var v1 = new VertexTypePC() { Position = p1, Colour = col };
+            var v2 = new VertexTypePC() { Position = p2, Colour = col };
+            var v3 = new VertexTypePC() { Position = p3, Colour = col };
+            var v4 = new VertexTypePC() { Position = p4, Colour = col };
+            SelectionTriVerts.Add(v1);
+            SelectionTriVerts.Add(v2);
+            SelectionTriVerts.Add(v3);
+            SelectionTriVerts.Add(v3);
+            SelectionTriVerts.Add(v4);
+            SelectionTriVerts.Add(v1);
+        }
+
+        public void RenderSelectionTriangleOutline(Vector3 p1, Vector3 p2, Vector3 p3, uint col)
+        {
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p1, Colour = col });
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p2, Colour = col });
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p2, Colour = col });
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p3, Colour = col });
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p3, Colour = col });
+            SelectionLineVerts.Add(new VertexTypePC() { Position = p1, Colour = col });
+        }
+
+        public void RenderSelectionCone(Vector3 position, Vector3 ax, Vector3 ay, Vector3 dir, float radius, float height, uint col)
+        {
+            const int Reso = 36;
+            const float MaxDeg = 360f;
+            const float DegToRad = 0.0174533f;
+            const float Ang = DegToRad * MaxDeg / Reso;
+
+            var c = new VertexTypePC[Reso];
+            var p = new VertexTypePC() { Position = position, Colour = col };
+
+            var circpos = position + (dir * height);
+
+            for (var i = 0; i < Reso; i++)
+            {
+                var a = i * Ang;
+                var x = (float)Math.Sin(a);
+                var y = (float)Math.Cos(a);
+                c[i].Position = circpos + (ax * (x * radius)) + (ay * (y * radius));
+                c[i].Colour = col;
+            }
+
+            for (var i = 0; i < c.Length; i++)
+            {
+                SelectionLineVerts.Add(c[i]);
+                SelectionLineVerts.Add(c[(i + 1) % c.Length]);
+                SelectionLineVerts.Add(c[i]);
+                SelectionLineVerts.Add(p);
+            }
+        }
+
+        public void RenderSelectionCapsule(Vector3 position, Vector3 ax, Vector3 ay, Vector3 dir, float radius, float height, uint col)
+        {
+            var cp1 = position - (dir * height);
+            var cp2 = position + (dir * height);
+            var axr = ax * radius;
+            var ayr = ay * radius;
+            RenderSelectionCircle(cp1, ax, ay, radius, col);
+            RenderSelectionCircle(cp2, ax, ay, radius, col);
+            RenderSelectionArc(cp1, -dir, ax, radius, 180, col);
+            RenderSelectionArc(cp1, -dir, ay, radius, 180, col);
+            RenderSelectionArc(cp2, dir, ax, radius, 180, col);
+            RenderSelectionArc(cp2, dir, ay, radius, 180, col);
+            RenderSelectionLine(cp1 + axr, cp2 + axr, col);
+            RenderSelectionLine(cp1 + ayr, cp2 + ayr, col);
+            RenderSelectionLine(cp1 - axr, cp2 - axr, col);
+            RenderSelectionLine(cp1 - ayr, cp2 - ayr, col);
+        }
+
         public void RenderSelectionBox(Vector3 p1, Vector3 p2, Vector3 a2, Vector3 a3, uint col)
         {
             VertexTypePC v = new VertexTypePC();
@@ -891,6 +1023,78 @@ namespace CodeWalker.Rendering
             v.Position = c7; SelectionLineVerts.Add(v); SelectionLineVerts.Add(v);
             v.Position = c8; SelectionLineVerts.Add(v); SelectionLineVerts.Add(v);
             v.Position = c5; SelectionLineVerts.Add(v);
+        }
+
+        public void RenderSelectionDrawableLight(LightAttributes light, Bone bone)
+        {
+            var colblu = (uint)(new Color(0, 0, 255, 255).ToRgba());
+            var colwht = (uint)(new Color(255, 255, 255, 255).ToRgba());
+
+            var pos = light.Position;
+            var dir = light.Direction;
+            var tx = light.Tangent;
+            if (bone != null)
+            {
+                var xform = bone.AnimTransform;
+                pos = xform.Multiply(pos);
+                dir = xform.MultiplyRot(dir);
+                tx = xform.MultiplyRot(tx);
+            }
+            var ty = Vector3.Normalize(Vector3.Cross(dir, tx));
+            var extent = light.Falloff;
+            var innerAngle = Math.Min(light.ConeInnerAngle, light.ConeOuterAngle) * 0.01745329f;
+            var outerAngle = Math.Max(light.ConeInnerAngle, light.ConeOuterAngle) * 0.01745329f; //pi/180
+            var type = light.Type;
+            switch (type)
+            {
+                case LightType.Point:
+                    RenderSelectionCircle(pos, Vector3.UnitX, Vector3.UnitZ, extent, colwht);
+                    RenderSelectionCircle(pos, Vector3.UnitX, Vector3.UnitY, extent, colwht);
+                    RenderSelectionCircle(pos, Vector3.UnitY, Vector3.UnitZ, extent, colwht);
+                    break;
+                case LightType.Spot:
+                    RenderSelectionCone(pos, tx, ty, dir, (float)Math.Sin(outerAngle) * extent, (float)Math.Cos(outerAngle) * extent, colblu);
+                    RenderSelectionCone(pos, tx, ty, dir, (float)Math.Sin(innerAngle) * extent, (float)Math.Cos(innerAngle) * extent, colwht);
+                    break;
+                case LightType.Capsule:
+                    outerAngle = light.ConeOuterAngle * 0.25f;
+                    RenderSelectionCapsule(pos, tx, ty, dir, extent, outerAngle, colwht);
+                    break;
+            }
+        }
+
+        public void RenderSelectionLodLight(YmapLODLight lodlight)
+        {
+
+            var colblu = (uint)(new Color(0, 0, 255, 255).ToRgba());
+            var colwht = (uint)(new Color(255, 255, 255, 255).ToRgba());
+
+            var pos = lodlight.Position;
+            var dir = lodlight.Direction;
+            var tx = lodlight.TangentX;
+            var ty = lodlight.TangentY;
+            var extent = lodlight.Falloff;
+            var innerAngle = lodlight.ConeInnerAngle * 0.012319971f; //pi/255
+            var outerAngle = lodlight.ConeOuterAngleOrCapExt * 0.012319971f; //pi/255
+            var type = lodlight.Type;
+            switch (type)
+            {
+                case LightType.Point:
+                    RenderSelectionCircle(pos, Vector3.UnitX, Vector3.UnitZ, extent, colwht);
+                    RenderSelectionCircle(pos, Vector3.UnitX, Vector3.UnitY, extent, colwht);
+                    RenderSelectionCircle(pos, Vector3.UnitY, Vector3.UnitZ, extent, colwht);
+                    break;
+                case LightType.Spot:
+                    RenderSelectionCone(pos, tx, ty, dir, (float)Math.Sin(outerAngle)*extent, (float)Math.Cos(outerAngle)*extent, colblu);
+                    RenderSelectionCone(pos, tx, ty, dir, (float)Math.Sin(innerAngle)*extent, (float)Math.Cos(innerAngle)*extent, colwht);
+                    break;
+                case LightType.Capsule:
+                    outerAngle = lodlight.ConeOuterAngleOrCapExt * 0.25f;
+                    RenderSelectionCapsule(pos, tx, ty, dir, extent, outerAngle, colwht);
+                    break;
+            }
+
+
         }
 
         public void RenderSelectionNavPoly(YnvPoly poly)
@@ -1076,6 +1280,8 @@ namespace CodeWalker.Rendering
             {
                 case MapSelectionMode.NavMesh:
                 case MapSelectionMode.WaterQuad:
+                case MapSelectionMode.CalmingQuad:
+                case MapSelectionMode.WaveQuad:
                 case MapSelectionMode.MloInstance:
                     clip = false;
                     break;
@@ -1160,6 +1366,8 @@ namespace CodeWalker.Rendering
             switch (mode)
             {
                 case MapSelectionMode.WaterQuad:
+                case MapSelectionMode.CalmingQuad:
+                case MapSelectionMode.WaveQuad:
                 case MapSelectionMode.MloInstance:
                     clip = false;
                     break;
@@ -1665,11 +1873,17 @@ namespace CodeWalker.Rendering
             LodManager.MapViewEnabled = MapViewEnabled;
             LodManager.MapViewDist = camera.OrthographicSize / MapViewDetail;
             LodManager.ShowScriptedYmaps = ShowScriptedYmaps;
+            LodManager.LODLightsEnabled = renderlodlights;
+            LodManager.HDLightsEnabled = renderlights;
             LodManager.Update(renderworldVisibleYmapDict, camera, currentElapsedTime);
 
+            foreach (var updatelodlights in LodManager.UpdateLodLights)
+            {
+                renderableCache.InvalidateImmediate(updatelodlights);
+            }
 
 
-            var ents = LodManager.GetVisibleLeaves();
+            var ents = LodManager.VisibleLeaves;
 
             for (int i = 0; i < ents.Count; i++)
             {
@@ -2729,6 +2943,132 @@ namespace CodeWalker.Rendering
                 }
             }
 
+
+            bool isselected = SelectionFlagsTestAll || (f.Drawable == SelectedDrawable);
+            if (isselected)
+            {
+                var darr = f.DrawableArray?.data_items;
+                if (darr != null)
+                {
+                    for (int i = 0; i < darr.Length; i++)
+                    {
+                        RenderDrawable(darr[i], arch, ent, txdhash, null, null, animClip);
+                    }
+                }
+            }
+
+
+
+            if (renderfragwindows)
+            {
+                var colblu = (uint)(new Color(0, 0, 255, 255).ToRgba());
+                var colred = (uint)(new Color(255, 0, 0, 255).ToRgba());
+                var eori = Quaternion.Identity;
+                var epos = Vector3.Zero;
+                if (ent != null)
+                {
+                    eori = ent.Orientation;
+                    epos = ent.Position;
+                }
+
+                if (f.GlassWindows?.data_items != null)
+                {
+                    for (int i = 0; i < f.GlassWindows.data_items.Length; i++)
+                    {
+                        var gw = f.GlassWindows.data_items[i];
+                        var projt = gw.ProjectionRow1;//row0? or row3? maybe investigate more
+                        var proju = gw.ProjectionRow2;//row1 of XYZ>UV projection
+                        var projv = gw.ProjectionRow3;//row2 of XYZ>UV projection
+                        //var unk01 = new Vector2(gw.UnkFloat13, gw.UnkFloat14);//offset?
+                        //var unk02 = new Vector2(gw.UnkFloat15, gw.UnkFloat16);//scale? sum of this and above often gives integers eg 1, 6
+                        //var thick = gw.Thickness; //thickness of the glass
+                        //var unkuv = new Vector2(gw.UnkFloat18, gw.UnkFloat19); //another scale in UV space..?
+                        //var tangt = gw.Tangent;//direction of surface tangent
+                        //var bones = f.Drawable?.Skeleton?.Bones?.Items; //todo: use bones instead?
+                        var grp = gw.Group;
+                        var grplod = gw.GroupLOD;
+                        var xforms = grplod?.FragTransforms?.Matrices;
+                        var xoffs = Vector3.Zero;
+                        if ((grp != null) && (xforms != null) && (grp.ChildIndex < xforms.Length) && (grplod != null))
+                        {
+                            var xform = xforms[grp.ChildIndex];
+                            xoffs = xform.TranslationVector + grplod.PositionOffset;
+                        }
+                        var m = new Matrix();
+                        m.Row1 = new Vector4(projt, 0);
+                        m.Row2 = new Vector4(proju, 0);
+                        m.Row3 = new Vector4(projv, 0);
+                        m.Row4 = new Vector4(xoffs, 1);
+                        var v0 = m.Multiply(new Vector3(1, 0, 0));
+                        var v1 = m.Multiply(new Vector3(1, 0, 1));
+                        var v2 = m.Multiply(new Vector3(1, 1, 1));
+                        var v3 = m.Multiply(new Vector3(1, 1, 0));
+                        var c0 = eori.Multiply(v0) + epos;
+                        var c1 = eori.Multiply(v1) + epos;
+                        var c2 = eori.Multiply(v2) + epos;
+                        var c3 = eori.Multiply(v3) + epos;
+                        RenderSelectionLine(c0, c1, colblu);
+                        RenderSelectionLine(c1, c2, colblu);
+                        RenderSelectionLine(c2, c3, colblu);
+                        RenderSelectionLine(c3, c0, colblu);
+                        //RenderSelectionLine(c0, c0 + tangt, colred);
+                    }
+                }
+                if (f.VehicleGlassWindows?.Windows != null)
+                {
+                    for (int i = 0; i < f.VehicleGlassWindows.Windows.Length; i++)
+                    {
+                        var vgw = f.VehicleGlassWindows.Windows[i];
+                        //var grp = vgw.Group;
+                        //var grplod = vgw.GroupLOD;
+                        var m = vgw.Projection;
+                        m.M44 = 1.0f;
+                        m.Transpose();
+                        m.Invert();//ouch
+                        var min = (new Vector3(0, 0, 0));
+                        var max = (new Vector3(vgw.ShatterMapWidth, vgw.ItemDataCount, 1));
+                        var v0 = m.MultiplyW(new Vector3(min.X, min.Y, 0));
+                        var v1 = m.MultiplyW(new Vector3(min.X, max.Y, 0));
+                        var v2 = m.MultiplyW(new Vector3(max.X, max.Y, 0));
+                        var v3 = m.MultiplyW(new Vector3(max.X, min.Y, 0));
+                        var c0 = eori.Multiply(v0) + epos;
+                        var c1 = eori.Multiply(v1) + epos;
+                        var c2 = eori.Multiply(v2) + epos;
+                        var c3 = eori.Multiply(v3) + epos;
+                        RenderSelectionLine(c0, c1, colblu);
+                        RenderSelectionLine(c1, c2, colblu);
+                        RenderSelectionLine(c2, c3, colblu);
+                        RenderSelectionLine(c3, c0, colblu);
+                        if (vgw.ShatterMap != null)
+                        {
+                            var width = vgw.ShatterMapWidth;
+                            var height = vgw.ShatterMap.Length;
+                            for (int y = 0; y < height; y++)
+                            {
+                                var smr = vgw.ShatterMap[y];
+                                for (int x = 0; x < width; x++)
+                                {
+                                    var v = smr.GetValue(x);
+                                    if ((v < 0) || (v > 255)) continue;
+                                    var col = (uint)(new Color(v, v, v, 127).ToRgba());
+                                    v0 = m.MultiplyW(new Vector3(x, y, 0));
+                                    v1 = m.MultiplyW(new Vector3(x, y+1, 0));
+                                    v2 = m.MultiplyW(new Vector3(x+1, y+1, 0));
+                                    v3 = m.MultiplyW(new Vector3(x+1, y, 0));
+                                    c0 = eori.Multiply(v0) + epos;
+                                    c1 = eori.Multiply(v1) + epos;
+                                    c2 = eori.Multiply(v2) + epos;
+                                    c3 = eori.Multiply(v3) + epos;
+                                    RenderSelectionQuad(c0, c1, c2, c3, col);//extra ouch
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+
+
             return true;
         }
 
@@ -2964,15 +3304,41 @@ namespace CodeWalker.Rendering
                 RenderSkeleton(rndbl, entity);
             }
 
-
-            if (renderlights && shaders.deferred && (rndbl.Lights != null) && interiorent)//only interior ents making lights! todo: fix LOD lights
+            if (renderlights && shaders.deferred && (rndbl.Lights != null))
             {
+                entity?.EnsureLights(rndbl.Key);
+
+
+
+                //reinit lights when added/removed from editor
+                var dd = rndbl.Key as Drawable;
+                var fd = rndbl.Key as FragDrawable;
+                var lights = dd?.LightAttributes?.data_items;
+                if ((lights == null) && (fd != null) && (fd?.OwnerFragment?.Drawable == fd))
+                {
+                    lights = fd.OwnerFragment.LightAttributes?.data_items;
+                }
+                if ((lights != null) && (lights.Length != rndbl.Lights.Length))
+                {
+                    rndbl.InitLights(lights);
+                }
+
+
                 var linst = new RenderableLightInst();
                 for (int i = 0; i < rndbl.Lights.Length; i++)
                 {
+                    var rndlight = rndbl.Lights[i];
+                    var light = rndlight.OwnerLight;
+
+                    if (light.UpdateRenderable == true)
+                    {
+                        rndlight.Init(light);
+                        light.UpdateRenderable = false;
+                    }
+
                     linst.EntityPosition = position;
                     linst.EntityRotation = orientation;
-                    linst.Light = rndbl.Lights[i];
+                    linst.Light = rndlight;
                     shaders.Enqueue(ref linst);
                 }
             }
@@ -3185,6 +3551,7 @@ namespace CodeWalker.Rendering
                                 dskel.BonesMap[srcbone.Tag] = srcbone;
                             }
                         }
+                        dskel.BonesSorted = skel.BonesSorted;//this is pretty hacky. TODO: try and fix all this! animate only the frag skeleton!
                     }
                 }
             }
@@ -3653,6 +4020,8 @@ namespace CodeWalker.Rendering
         public bool MapViewEnabled = false;
         public float MapViewDist = 1.0f;
         public bool ShowScriptedYmaps = true;
+        public bool HDLightsEnabled = true;
+        public bool LODLightsEnabled = true;
 
         public Camera Camera = null;
         public Vector3 Position = Vector3.Zero;
@@ -3662,6 +4031,11 @@ namespace CodeWalker.Rendering
         public Dictionary<YmapEntityDef, YmapEntityDef> RootEntities = new Dictionary<YmapEntityDef, YmapEntityDef>();
         public List<YmapEntityDef> VisibleLeaves = new List<YmapEntityDef>();
 
+        public Dictionary<uint, YmapLODLight> LodLightsDict = new Dictionary<uint, YmapLODLight>();
+        public HashSet<YmapEntityDef.LightInstance> VisibleLights = new HashSet<YmapEntityDef.LightInstance>();
+        public HashSet<YmapEntityDef.LightInstance> VisibleLightsPrev = new HashSet<YmapEntityDef.LightInstance>();
+        public HashSet<YmapLODLights> UpdateLodLights = new HashSet<YmapLODLights>();
+
         public void Update(Dictionary<MetaHash, YmapFile> ymaps, Camera camera, float elapsed)
         {
             Camera = camera;
@@ -3670,38 +4044,14 @@ namespace CodeWalker.Rendering
             foreach (var kvp in ymaps)
             {
                 var ymap = kvp.Value;
-                var pymap = ymap.Parent;
                 if (ymap._CMapData.parent != 0) //ensure parent references on ymaps
                 {
-                    ymaps.TryGetValue(ymap._CMapData.parent, out pymap);
+                    ymaps.TryGetValue(ymap._CMapData.parent, out YmapFile pymap);
                     if (pymap == null) //skip adding ymaps until parents are available
                     { continue; }
                     if (ymap.Parent != pymap)
                     {
-                        ymap.Parent = pymap;
-                        if (ymap.RootEntities != null) //parent changed or first set, make sure to link entities hierarchy
-                        {
-                            for (int i = 0; i < ymap.RootEntities.Length; i++)
-                            {
-                                var ent = ymap.RootEntities[i];
-                                int pind = ent._CEntityDef.parentIndex;
-                                if (pind >= 0) //connect root entities to parents if they have them..
-                                {
-                                    YmapEntityDef p = null;
-                                    if ((pymap != null) && (pymap.AllEntities != null))
-                                    {
-                                        if ((pind < pymap.AllEntities.Length))
-                                        {
-                                            p = pymap.AllEntities[pind];
-                                            ent.Parent = p;
-                                            ent.ParentName = p._CEntityDef.archetypeName;
-                                        }
-                                    }
-                                    else
-                                    { }//should only happen if parent ymap not loaded yet...
-                                }
-                            }
-                        }
+                        ymap.ConnectToParent(pymap);
                     }
                 }
             }
@@ -3735,6 +4085,14 @@ namespace CodeWalker.Rendering
                         }
                     }
                 }
+                var remLodLights = ymap.LODLights?.LodLights;
+                if (remLodLights != null)
+                {
+                    for (int i = 0; i < remLodLights.Length; i++)
+                    {
+                        LodLightsDict.Remove(remLodLights[i].Hash);
+                    }
+                }
                 ymap.LodManagerUpdate = false;
                 ymap.LodManagerOldEntities = null;
             }
@@ -3763,15 +4121,21 @@ namespace CodeWalker.Rendering
                             }
                         }
                     }
+                    var addLodLights = ymap.LODLights?.LodLights;
+                    if (addLodLights != null)
+                    {
+                        for (int i = 0; i < addLodLights.Length; i++)
+                        {
+                            var light = addLodLights[i];
+                            LodLightsDict[light.Hash] = light;
+                        }
+                    }
                 }
             }
 
 
-        }
-
-        public List<YmapEntityDef> GetVisibleLeaves()
-        {
             VisibleLeaves.Clear();
+            VisibleLights.Clear();
             foreach (var kvp in RootEntities)
             {
                 var ent = kvp.Key;
@@ -3784,8 +4148,37 @@ namespace CodeWalker.Rendering
                     }
                 }
             }
-            return VisibleLeaves;
+
+            UpdateLodLights.Clear();
+            foreach (var light in VisibleLights)
+            {
+                if (VisibleLightsPrev.Contains(light) == false)
+                {
+                    if (LodLightsDict.TryGetValue(light.Hash, out var lodlight))
+                    {
+                        lodlight.Enabled = false;
+                        UpdateLodLights.Add(lodlight.LodLights);
+                    }
+                }
+            }
+            foreach (var light in VisibleLightsPrev)
+            {
+                if (VisibleLights.Contains(light) == false)
+                {
+                    if (LodLightsDict.TryGetValue(light.Hash, out var lodlight))
+                    {
+                        lodlight.Enabled = true;
+                        UpdateLodLights.Add(lodlight.LodLights);
+                    }
+                }
+            }
+
+
+            var vl = VisibleLights;
+            VisibleLights = VisibleLightsPrev;
+            VisibleLightsPrev = vl;
         }
+
         private void RecurseAddVisibleLeaves(YmapEntityDef ent)
         {
             var clist = GetEntityChildren(ent);
@@ -3803,6 +4196,14 @@ namespace CodeWalker.Rendering
                 if (EntityVisible(ent))
                 {
                     VisibleLeaves.Add(ent);
+
+                    if (HDLightsEnabled && (ent.Lights != null))
+                    {
+                        for (int i = 0; i < ent.Lights.Length; i++)
+                        {
+                            VisibleLights.Add(ent.Lights[i]);
+                        }
+                    }
                 }
             }
         }

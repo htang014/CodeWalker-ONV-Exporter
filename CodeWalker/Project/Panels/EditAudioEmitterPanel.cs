@@ -53,13 +53,11 @@ namespace CodeWalker.Project.Panels
                 PositionTextBox.Text = string.Empty;
                 InnerRadTextBox.Text = string.Empty;
                 OuterRadTextBox.Text = string.Empty;
-                Hash1TextBox.Text = string.Empty;
-                Hash2TextBox.Text = string.Empty;
+                ChildSoundTextBox.Text = string.Empty;
+                CategoryTextBox.Text = string.Empty;
                 Unk01TextBox.Text = string.Empty;
-                Unk02UpDown.Value = 0;
-                Unk03UpDown.Value = 0;
-                Unk04UpDown.Value = 0;
-                Unk05UpDown.Value = 0;
+                StartTimeUpDown.Value = 0;
+                EndTimeUpDown.Value = 0;
                 Unk06UpDown.Value = 0;
                 Unk07UpDown.Value = 0;
                 Unk08UpDown.Value = 0;
@@ -88,13 +86,11 @@ namespace CodeWalker.Project.Panels
                 PositionTextBox.Text = FloatUtil.GetVector3String(e.Position);
                 InnerRadTextBox.Text = FloatUtil.ToString(e.InnerRad);
                 OuterRadTextBox.Text = FloatUtil.ToString(e.OuterRad);
-                Hash1TextBox.Text = e.Hash1.ToString();
-                Hash2TextBox.Text = e.Hash2.ToString();
+                ChildSoundTextBox.Text = e.ChildSound.ToString();
+                CategoryTextBox.Text = e.Category.ToString();
                 Unk01TextBox.Text = FloatUtil.ToString(e.Unk01);
-                Unk02UpDown.Value = e.Unk02.Value;
-                Unk03UpDown.Value = e.Unk03.Value;
-                Unk04UpDown.Value = e.Unk04.Value;
-                Unk05UpDown.Value = e.Unk05.Value;
+                StartTimeUpDown.Value = e.StartTime;
+                EndTimeUpDown.Value = e.EndTime;
                 Unk06UpDown.Value = e.Unk06.Value;
                 Unk07UpDown.Value = e.Unk07.Value;
                 Unk08UpDown.Value = e.Unk08.Value;
@@ -221,13 +217,13 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void Hash1TextBox_TextChanged(object sender, EventArgs e)
+        private void ChildSoundTextBox_TextChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentEmitter?.AudioEmitter == null) return;
 
             uint hash = 0;
-            string name = Hash1TextBox.Text;
+            string name = ChildSoundTextBox.Text;
             if (!uint.TryParse(name, out hash))//don't re-hash hashes
             {
                 hash = JenkHash.GenHash(name);
@@ -235,21 +231,21 @@ namespace CodeWalker.Project.Panels
             }
             //HashLabel.Text = "Hash: " + hash.ToString();
 
-            if (CurrentEmitter.AudioEmitter.Hash1 != hash)
+            if (CurrentEmitter.AudioEmitter.ChildSound != hash)
             {
-                CurrentEmitter.AudioEmitter.Hash1 = hash;
+                CurrentEmitter.AudioEmitter.ChildSound = hash;
 
                 ProjectItemChanged();
             }
         }
 
-        private void Hash2TextBox_TextChanged(object sender, EventArgs e)
+        private void CategoryTextBox_TextChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentEmitter?.AudioEmitter == null) return;
 
             uint hash = 0;
-            string name = Hash2TextBox.Text;
+            string name = CategoryTextBox.Text;
             if (!uint.TryParse(name, out hash))//don't re-hash hashes
             {
                 hash = JenkHash.GenHash(name);
@@ -257,9 +253,9 @@ namespace CodeWalker.Project.Panels
             }
             //HashLabel.Text = "Hash: " + hash.ToString();
 
-            if (CurrentEmitter.AudioEmitter.Hash2 != hash)
+            if (CurrentEmitter.AudioEmitter.Category != hash)
             {
-                CurrentEmitter.AudioEmitter.Hash2 = hash;
+                CurrentEmitter.AudioEmitter.Category = hash;
 
                 ProjectItemChanged();
             }
@@ -279,57 +275,29 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void Unk02UpDown_ValueChanged(object sender, EventArgs e)
+        private void StartTimeUpDown_ValueChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentEmitter?.AudioEmitter == null) return;
 
-            byte unk = (byte)Unk02UpDown.Value;
-            if (CurrentEmitter.AudioEmitter.Unk02.Value != unk)
+            ushort unk = (ushort)StartTimeUpDown.Value;
+            if (CurrentEmitter.AudioEmitter.StartTime != unk)
             {
-                CurrentEmitter.AudioEmitter.Unk02 = unk;
+                CurrentEmitter.AudioEmitter.StartTime = unk;
 
                 ProjectItemChanged();
             }
         }
 
-        private void Unk03UpDown_ValueChanged(object sender, EventArgs e)
+        private void EndTimeUpDown_ValueChanged(object sender, EventArgs e)
         {
             if (populatingui) return;
             if (CurrentEmitter?.AudioEmitter == null) return;
 
-            byte unk = (byte)Unk03UpDown.Value;
-            if (CurrentEmitter.AudioEmitter.Unk03.Value != unk)
+            ushort unk = (ushort)EndTimeUpDown.Value;
+            if (CurrentEmitter.AudioEmitter.EndTime != unk)
             {
-                CurrentEmitter.AudioEmitter.Unk03 = unk;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void Unk04UpDown_ValueChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.AudioEmitter == null) return;
-
-            byte unk = (byte)Unk04UpDown.Value;
-            if (CurrentEmitter.AudioEmitter.Unk04.Value != unk)
-            {
-                CurrentEmitter.AudioEmitter.Unk04 = unk;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void Unk05UpDown_ValueChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.AudioEmitter == null) return;
-
-            byte unk = (byte)Unk05UpDown.Value;
-            if (CurrentEmitter.AudioEmitter.Unk05.Value != unk)
-            {
-                CurrentEmitter.AudioEmitter.Unk05 = unk;
+                CurrentEmitter.AudioEmitter.EndTime = unk;
 
                 ProjectItemChanged();
             }
@@ -557,13 +525,13 @@ namespace CodeWalker.Project.Panels
             var paramstrs = ExtParamsTextBox.Text.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
             if (paramstrs?.Length > 0)
             {
-                var paramlist = new List<Dat151AmbientEmitter.ExtParam>();
+                var paramlist = new List<Dat151AmbientRule.ExtParam>();
                 foreach (var paramstr in paramstrs)
                 {
                     var paramvals = paramstr.Split(',');
                     if (paramvals?.Length == 3)
                     {
-                        var param = new Dat151AmbientEmitter.ExtParam();
+                        var param = new Dat151AmbientRule.ExtParam();
                         var hashstr = paramvals[0].Trim();
                         var valstr = paramvals[1].Trim();
                         var flgstr = paramvals[2].Trim();
@@ -593,7 +561,7 @@ namespace CodeWalker.Project.Panels
         {
             if (CurrentEmitter == null) return;
             if (ProjectForm.WorldForm == null) return;
-            ProjectForm.WorldForm.GoToPosition(CurrentEmitter.Position, CurrentEmitter.AudioZone.InnerSize);
+            ProjectForm.WorldForm.GoToPosition(CurrentEmitter.Position, CurrentEmitter.AudioZone.PlaybackZoneSize);
         }
 
         private void AddToProjectButton_Click(object sender, EventArgs e)

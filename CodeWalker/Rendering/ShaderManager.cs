@@ -235,6 +235,8 @@ namespace CodeWalker.Rendering
             bsAdd.Dispose();
             rsSolid.Dispose();
             rsWireframe.Dispose();
+            rsSolidDblSided.Dispose();
+            rsWireframeDblSided.Dispose();
 
             Widgets.Dispose();
             Paths.Dispose();
@@ -284,6 +286,8 @@ namespace CodeWalker.Rendering
 
         public void BeginFrame(DeviceContext context, double currentRealTime, float elapsedTime)
         {
+            if (disposed) return;
+
             CurrentRealTime = currentRealTime;
             CurrentElapsedTime = elapsedTime;
 
@@ -521,21 +525,8 @@ namespace CodeWalker.Rendering
 
             context.OutputMerger.BlendState = bsDefault;
             context.Rasterizer.State = wireframe ? rsWireframeDblSided : rsSolidDblSided;
-            context.OutputMerger.DepthStencilState = dsDisableWrite;
-
-            for (int i = 0; i < RenderBuckets.Count; i++) //water pass
-            {
-                var bucket = RenderBuckets[i];
-                if (bucket.WaterBatches.Count > 0)
-                {
-                    RenderGeometryBatches(context, bucket.WaterBatches, Water);
-                }
-                if (bucket.Water2Batches.Count > 0)
-                {
-                    RenderGeometryBatches(context, bucket.Water2Batches, Water);
-                }
-            }
-            if (RenderWaterQuads.Count > 0) //also render water quads here
+            context.OutputMerger.DepthStencilState = dsEnabled;
+            if (RenderWaterQuads.Count > 0) //render water quads
             {
                 Water.SetShader(context);
                 Water.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
@@ -544,6 +535,24 @@ namespace CodeWalker.Rendering
                     Water.RenderWaterQuad(context, RenderWaterQuads[i]);
                 }
                 Water.UnbindResources(context);
+            }
+            for (int i = 0; i < RenderBuckets.Count; i++) //main water geoms pass
+            {
+                var bucket = RenderBuckets[i];
+                if (bucket.WaterBatches.Count > 0)
+                {
+                    RenderGeometryBatches(context, bucket.WaterBatches, Water);
+                }
+            }
+
+            context.OutputMerger.DepthStencilState = dsDisableWrite;
+            for (int i = 0; i < RenderBuckets.Count; i++) //water decals pass
+            {
+                var bucket = RenderBuckets[i];
+                if (bucket.Water2Batches.Count > 0)
+                {
+                    RenderGeometryBatches(context, bucket.Water2Batches, Water);
+                }
             }
 
 

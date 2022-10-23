@@ -208,22 +208,7 @@ namespace CodeWalker.World
             if (tpind < typhashes.Length)
             {
                 var hash = typhashes[tpind];
-                var st = types.GetScenarioType(hash);
-                if (st != null)
-                {
-                    scp.Type = new ScenarioTypeRef(st);
-                }
-                else
-                {
-                    var stg = types.GetScenarioTypeGroup(hash);
-                    if (stg != null)
-                    {
-                        scp.Type = new ScenarioTypeRef(stg);
-                    }
-                    else
-                    { }
-                }
-
+                scp.Type = types.GetScenarioTypeRef(hash);
                 isveh = scp.Type?.IsVehicle ?? false; //TODO: make a warning about this if scp.Type is null?
             }
             else
@@ -292,22 +277,7 @@ namespace CodeWalker.World
             if ((hash != 0) && (hash != 493038497))
             {
                 bool isveh = false;
-                var st = types.GetScenarioType(hash);
-                if (st != null)
-                {
-                    spn.Type = new ScenarioTypeRef(st);
-                }
-                else
-                {
-                    var stg = types.GetScenarioTypeGroup(hash);
-                    if (stg != null)
-                    {
-                        spn.Type = new ScenarioTypeRef(stg);
-                    }
-                    else
-                    { }
-                }
-
+                spn.Type = types.GetScenarioTypeRef(hash);
                 isveh = spn.Type?.IsVehicle ?? false;
                 if (isveh)
                 { }
@@ -349,32 +319,35 @@ namespace CodeWalker.World
                         {
                             chainedges.Clear();
 
-                            foreach (var edgeId in chain.EdgeIds)
+                            if (chain.EdgeIds != null)
                             {
-                                if (edgeId >= rpe.Length)
-                                { continue; }
-                                var edge = rpe[edgeId];
+                                foreach (var edgeId in chain.EdgeIds)
+                                {
+                                    if (edgeId >= rpe.Length)
+                                    { continue; }
+                                    var edge = rpe[edgeId];
 
-                                if (edge.NodeIndexFrom >= rpn.Length)
-                                { continue; }
-                                if (edge.NodeIndexTo >= rpn.Length)
-                                { continue; }
+                                    if (edge.NodeIndexFrom >= rpn.Length)
+                                    { continue; }
+                                    if (edge.NodeIndexTo >= rpn.Length)
+                                    { continue; }
 
-                                edge.NodeFrom = rpn[edge.NodeIndexFrom];
-                                edge.NodeTo = rpn[edge.NodeIndexTo];
+                                    edge.NodeFrom = rpn[edge.NodeIndexFrom];
+                                    edge.NodeTo = rpn[edge.NodeIndexTo];
 
-                                var nfc = edge.NodeFrom?.Chain;
-                                var ntc = edge.NodeTo?.Chain;
+                                    var nfc = edge.NodeFrom?.Chain;
+                                    var ntc = edge.NodeTo?.Chain;
 
-                                if ((nfc != null) && (nfc != chain))
-                                { }
-                                if ((ntc != null) && (ntc != chain))
-                                { }
+                                    if ((nfc != null) && (nfc != chain))
+                                    { }
+                                    if ((ntc != null) && (ntc != chain))
+                                    { }
 
-                                if (edge.NodeFrom != null) edge.NodeFrom.Chain = chain;
-                                if (edge.NodeTo != null) edge.NodeTo.Chain = chain;
+                                    if (edge.NodeFrom != null) edge.NodeFrom.Chain = chain;
+                                    if (edge.NodeTo != null) edge.NodeTo.Chain = chain;
 
-                                chainedges.Add(edge);
+                                    chainedges.Add(edge);
+                                }
                             }
 
                             chain.Edges = chainedges.ToArray();
@@ -488,8 +461,8 @@ namespace CodeWalker.World
                                 if ((vid1 >= r.Paths.Nodes.Length) || (vid2 >= r.Paths.Nodes.Length)) continue;
                                 var v1 = r.Paths.Nodes[vid1];
                                 var v2 = r.Paths.Nodes[vid2];
-                                byte cr1 = (v1.NotFirst) ? (byte)255 : (byte)0;
-                                byte cr2 = (v2.NotFirst) ? (byte)255 : (byte)0;
+                                byte cr1 = (v1.HasIncomingEdges) ? (byte)255 : (byte)0;
+                                byte cr2 = (v2.HasIncomingEdges) ? (byte)255 : (byte)0;
                                 byte cg = 0;// (chain._Data.Unk_1156691834 > 1) ? (byte)255 : (byte)0;
                                 //cg = ((v1.Unk1 != 0) || (v2.Unk1 != 0)) ? (byte)255 : (byte)0;
                                 //cg = (edge.Action == CScenarioChainingEdge__eAction.Unk_7865678) ? (byte)255 : (byte)0;
@@ -499,8 +472,8 @@ namespace CodeWalker.World
                                 byte cb2 = (byte)(255 - cr2);
                                 pv1.Position = v1.Position;
                                 pv2.Position = v2.Position;
-                                pv1.Colour = (uint)new Color(cr1, cg, cb1, (byte)255).ToRgba();// (v1._Data.Unk_407126079 == 1) ? cred : cblu;
-                                pv2.Colour = (uint)new Color(cr2, cg, cb2, (byte)255).ToRgba();// (v2._Data.Unk_407126079 == 1) ? cred : cblu;
+                                pv1.Colour = (uint)new Color(cr1, cg, cb1, (byte)255).ToRgba();// (v1._Data.HasIncomingEdges == 1) ? cred : cblu;
+                                pv2.Colour = (uint)new Color(cr2, cg, cb2, (byte)255).ToRgba();// (v2._Data.HasIncomingEdges == 1) ? cred : cblu;
                                 pathverts.Add(pv1);
                                 pathverts.Add(pv2);
                             }
@@ -824,8 +797,8 @@ namespace CodeWalker.World
                             Region.Paths.AddEdge(newEdge);
 
                             //chain start/end have these flags set... make sure they are updated!
-                            copy.ChainingNode.NotLast = true;
-                            n.ChainingNode.NotLast = false;
+                            copy.ChainingNode.HasOutgoingEdges = true;
+                            n.ChainingNode.HasOutgoingEdges = false;
 
                             if (copy.Region == Region) //only add the new edge if we're in the same region...
                             {
@@ -895,9 +868,157 @@ namespace CodeWalker.World
             return res;
         }
 
+        public bool RemoveChain(MCScenarioChain chain, bool delpoints)
+        {
+            var paths = Region?.Paths;
+            if (paths == null) return false;
+
+
+            Dictionary<MCScenarioChainingNode, int> ndict = new Dictionary<MCScenarioChainingNode, int>();
+
+            var edges = chain.Edges;
+            if (edges != null)
+            {
+                foreach (var edge in edges)
+                {
+                    //paths.RemoveEdge(edge); //removing nodes also removes edges!
+                    paths.RemoveNode(edge.NodeFrom);
+                    paths.RemoveNode(edge.NodeTo);
+
+                    ndict[edge.NodeFrom] = 1;
+                    ndict[edge.NodeTo] = 1;
+                }
+            }
+
+            paths.RemoveChain(chain);
+
+
+            List<ScenarioNode> delnodes = new List<ScenarioNode>();
+            foreach (var node in Nodes)
+            {
+                if ((node.ChainingNode != null) && (ndict.ContainsKey(node.ChainingNode)))
+                {
+                    delnodes.Add(node);
+                }
+            }
+            foreach (var delnode in delnodes)
+            {
+                delnode.ChainingNode = null;//this chaining node has been removed from the region. remove this association.
+                if (delpoints)
+                {
+                    RemoveNode(delnode);
+                }
+            }
+
+            return true;
+        }
+
+        public bool RemoveCluster(MCScenarioPointCluster cluster, bool delpoints)
+        {
+            var crgn = Region;
+            if (crgn == null) return false;
+
+
+            crgn.RemoveCluster(cluster);
 
 
 
+
+
+            Dictionary<MCScenarioPoint, int> ndict = new Dictionary<MCScenarioPoint, int>();
+            if (cluster?.Points?.MyPoints != null)
+            {
+                foreach (var point in cluster.Points.MyPoints)
+                {
+                    ndict[point] = 1;
+                }
+            }
+            List<ScenarioNode> delnodes = new List<ScenarioNode>();
+            foreach (var node in Nodes)
+            {
+                if ((node.ClusterMyPoint != null) && (ndict.ContainsKey(node.ClusterMyPoint)))
+                {
+                    delnodes.Add(node);
+                }
+                else if (node.Cluster == cluster)
+                {
+                    delnodes.Add(node);
+                }
+            }
+            foreach (var delnode in delnodes)
+            {
+                if (!delpoints && (crgn.Points != null) && (delnode.ClusterMyPoint != null))
+                {
+                    var copypt = new MCScenarioPoint(crgn, delnode.ClusterMyPoint);
+                    crgn.Points.AddMyPoint(copypt);
+                    delnode.MyPoint = copypt;
+                }
+                bool iscl = false;
+                if ((delnode.Cluster != null) && (delnode.ClusterMyPoint == null) && (delnode.ClusterLoadSavePoint == null))
+                {
+                    iscl = true;
+                }
+                delnode.Cluster = null;
+                delnode.ClusterMyPoint = null;//this cluster point has been removed from the region. remove this association.
+                delnode.ClusterLoadSavePoint = null;
+                if (delpoints)
+                {
+                    //if ((delnode.ChainingNode == null) && (delnode.EntityPoint == null))
+                    {
+                        RemoveNode(delnode);
+                    }
+                }
+                else if (iscl)
+                {
+                    RemoveNode(delnode); //remove the cluster node itself.
+                }
+            }
+
+
+            return true;
+        }
+
+        public bool RemoveEntity(MCScenarioEntityOverride entity)
+        {
+            var crgn = Region;
+            if (crgn == null) return false;
+
+
+            crgn.RemoveEntity(entity);
+
+
+
+
+
+            Dictionary<MCExtensionDefSpawnPoint, int> ndict = new Dictionary<MCExtensionDefSpawnPoint, int>();
+            if (entity.ScenarioPoints != null)
+            {
+                foreach (var point in entity.ScenarioPoints)
+                {
+                    ndict[point] = 1;
+                }
+            }
+            List<ScenarioNode> delnodes = new List<ScenarioNode>();
+            foreach (var node in Nodes)
+            {
+                if ((node.EntityPoint != null) && (ndict.ContainsKey(node.EntityPoint)))
+                {
+                    delnodes.Add(node);
+                }
+                else if (node.Entity == entity)
+                {
+                    delnodes.Add(node);
+                }
+            }
+            foreach (var delnode in delnodes)
+            {
+                delnode.Entity = null;
+                delnode.EntityPoint = null;//this entity point has been removed from the region. remove this association.
+                RemoveNode(delnode);
+            }
+
+            return true;
+        }
 
 
 
@@ -1087,10 +1208,10 @@ namespace CodeWalker.World
                     int interiorid = 0;
                     int groupid = 0;
                     int imapid = 0;
-                    if ((mp.Type != null) && (!typeNames.TryGetValue(mp.Type.Value.NameHash, out typeid)))
+                    if ((mp.Type != null) && (!typeNames.TryGetValue(mp.Type.NameHash, out typeid)))
                     {
                         typeid = typeNames.Count;
-                        typeNames[mp.Type.Value.NameHash] = typeid;
+                        typeNames[mp.Type.NameHash] = typeid;
                     }
                     if (mp.ModelSet != null)
                     {
@@ -1179,10 +1300,10 @@ namespace CodeWalker.World
                     int interiorid = 0;
                     int groupid = 0;
                     int imapid = 0;
-                    if ((mp.Type != null) && (!typeNames.TryGetValue(mp.Type.Value.NameHash, out typeid)))
+                    if ((mp.Type != null) && (!typeNames.TryGetValue(mp.Type.NameHash, out typeid)))
                     {
                         typeid = typeNames.Count;
-                        typeNames[mp.Type.Value.NameHash] = typeid;
+                        typeNames[mp.Type.NameHash] = typeid;
                     }
                     if (mp.ModelSet != null)
                     {
@@ -1521,6 +1642,7 @@ namespace CodeWalker.World
     {
         private object SyncRoot = new object(); //keep this thread-safe.. technically shouldn't be necessary, but best to be safe
 
+        private Dictionary<uint, ScenarioTypeRef> TypeRefs { get; set; }
         private Dictionary<uint, ScenarioType> Types { get; set; }
         private Dictionary<uint, ScenarioTypeGroup> TypeGroups { get; set; }
         private Dictionary<uint, AmbientModelSet> PropSets { get; set; }
@@ -1540,6 +1662,16 @@ namespace CodeWalker.World
                 PedModelSets = LoadModelSets(gfc, "common:\\data\\ai\\ambientpedmodelsets.meta");
                 VehicleModelSets = LoadModelSets(gfc, "common:\\data\\ai\\vehiclemodelsets.meta");
                 AnimGroups = LoadAnimGroups(gfc, "common:\\data\\ai\\conditionalanims.meta");
+
+                TypeRefs = new Dictionary<uint, ScenarioTypeRef>();
+                foreach (var kvp in Types)
+                {
+                    TypeRefs[kvp.Key] = new ScenarioTypeRef(kvp.Value);
+                }
+                foreach (var kvp in TypeGroups)
+                {
+                    TypeRefs[kvp.Key] = new ScenarioTypeRef(kvp.Value);
+                }
             }
         }
 
@@ -1664,6 +1796,14 @@ namespace CodeWalker.World
             var setsxml = xml.DocumentElement;
             var items = setsxml.SelectNodes("ModelSets/Item");
 
+
+            var noneset = new AmbientModelSet();
+            noneset.Name = "NONE";
+            noneset.NameLower = "none";
+            noneset.NameHash = JenkHash.GenHash("none");
+            sets[noneset.NameHash] = noneset;
+
+
             foreach (XmlNode item in items)
             {
                 AmbientModelSet set = new AmbientModelSet();
@@ -1712,6 +1852,16 @@ namespace CodeWalker.World
 
 
 
+        public ScenarioTypeRef GetScenarioTypeRef(uint hash)
+        {
+            lock (SyncRoot)
+            {
+                if (TypeRefs == null) return null;
+                ScenarioTypeRef st;
+                TypeRefs.TryGetValue(hash, out st);
+                return st;
+            }
+        }
         public ScenarioType GetScenarioType(uint hash)
         {
             lock (SyncRoot)
@@ -1791,6 +1941,14 @@ namespace CodeWalker.World
             }
         }
 
+        public ScenarioTypeRef[] GetScenarioTypeRefs()
+        {
+            lock (SyncRoot)
+            {
+                if (TypeRefs == null) return null;
+                return TypeRefs.Values.ToArray();
+            }
+        }
         public ScenarioType[] GetScenarioTypes()
         {
             lock (SyncRoot)
@@ -1842,12 +2000,13 @@ namespace CodeWalker.World
 
     }
 
-    /// <summary>
-    /// Represents a scenario type that may either be a <see cref="ScenarioType"/> or a <see cref="ScenarioTypeGroup"/>.
-    /// Used with CScenarioChainingNode and CScenarioPoint.
-    /// </summary>
-    [TypeConverter(typeof(ExpandableObjectConverter))] public struct ScenarioTypeRef
+    [TypeConverter(typeof(ExpandableObjectConverter))] public class ScenarioTypeRef
     {
+        /// <summary>
+        /// Represents a scenario type that may either be a <see cref="ScenarioType"/> or a <see cref="ScenarioTypeGroup"/>.
+        /// Used with CScenarioChainingNode and CScenarioPoint.
+        /// </summary>
+        
         public string Name => IsGroup ? Group.Name : Type.Name;
         public string NameLower => IsGroup ? Group.NameLower : Type.NameLower;
         public MetaHash NameHash => IsGroup ? Group.NameHash : Type.NameHash;
@@ -1859,12 +2018,6 @@ namespace CodeWalker.World
         public ScenarioType Type { get; }
         public ScenarioTypeGroup Group { get; }
 
-        public ScenarioTypeRef(ScenarioTypeRef typeRef)
-        {
-            IsGroup = typeRef.IsGroup;
-            Type = typeRef.Type;
-            Group = typeRef.Group;
-        }
 
         public ScenarioTypeRef(ScenarioType type)
         {
@@ -1883,26 +2036,6 @@ namespace CodeWalker.World
         public override string ToString()
         {
             return Name;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is ScenarioTypeRef other && other == this;
-        }
-
-        public override int GetHashCode()
-        {
-            return NameHash.GetHashCode();
-        }
-
-        public static bool operator ==(ScenarioTypeRef a, ScenarioTypeRef b)
-        {
-            return a.NameHash == b.NameHash;
-        }
-
-        public static bool operator !=(ScenarioTypeRef a, ScenarioTypeRef b)
-        {
-            return a.NameHash != b.NameHash;
         }
     }
 

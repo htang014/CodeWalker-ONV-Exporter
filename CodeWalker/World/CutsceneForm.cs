@@ -1433,7 +1433,7 @@ namespace CodeWalker.World
                 var streaminfs = new List<Dat54SimpleSound>();
                 var streamlist = new List<AwcStream>();
 
-                foreach (var chan in strsnd.AudioTracks)
+                foreach (var chan in strsnd.ChildSounds)
                 {
                     if (chan is Dat54SimpleSound chansnd)
                     {
@@ -1477,7 +1477,7 @@ namespace CodeWalker.World
                     var streaminf = streaminfs[i];
                     var left = 1.0f;
                     var right = 1.0f;
-                    switch (streaminf.Header?.Unk06 ?? 0)
+                    switch (streaminf.Header?.Pan ?? 0)
                     {
                         case 0://center/default
                             left = 1.0f;

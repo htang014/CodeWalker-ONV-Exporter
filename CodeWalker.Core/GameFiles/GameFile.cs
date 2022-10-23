@@ -80,6 +80,11 @@ namespace CodeWalker.GameFiles
         Yed = 24,
         Yld = 25,
         Yfd = 26,
+        Heightmap = 27,
+        Watermap = 28,
+        Mrf = 29,
+        DistantLights = 30,
+        Ypdb = 31,
     }
 
 

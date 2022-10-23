@@ -268,17 +268,18 @@ namespace CodeWalker
             InitFileType(".ini", "Config Text", 5, FileTypeAction.ViewText);
             InitFileType(".vdf", "Steam Script File", 5, FileTypeAction.ViewText);
             InitFileType(".sps", "Shader Preset", 5, FileTypeAction.ViewText);
+            InitFileType(".ugc", "User-Generated Content", 5, FileTypeAction.ViewText);
             InitFileType(".xml", "XML File", 6, FileTypeAction.ViewXml);
             InitFileType(".meta", "Metadata (XML)", 6, FileTypeAction.ViewXml);
             InitFileType(".ymt", "Metadata (Binary)", 6, FileTypeAction.ViewYmt, true);
             InitFileType(".pso", "Metadata (PSO)", 6, FileTypeAction.ViewJPso, true);
             InitFileType(".gfx", "Scaleform Flash", 7);
             InitFileType(".ynd", "Path Nodes", 8, FileTypeAction.ViewYnd, true);
-            InitFileType(".ynv", "Nav Mesh", 9, FileTypeAction.ViewModel);
-            InitFileType(".yvr", "Vehicle Record", 9, FileTypeAction.ViewYvr);
-            InitFileType(".ywr", "Waypoint Record", 9, FileTypeAction.ViewYwr);
-            InitFileType(".fxc", "Compiled Shaders", 9, FileTypeAction.ViewFxc);
-            InitFileType(".yed", "Expression Dictionary", 9, FileTypeAction.ViewYed);
+            InitFileType(".ynv", "Nav Mesh", 9, FileTypeAction.ViewModel, true);
+            InitFileType(".yvr", "Vehicle Record", 9, FileTypeAction.ViewYvr, true);
+            InitFileType(".ywr", "Waypoint Record", 9, FileTypeAction.ViewYwr, true);
+            InitFileType(".fxc", "Compiled Shaders", 9, FileTypeAction.ViewFxc, true);
+            InitFileType(".yed", "Expression Dictionary", 9, FileTypeAction.ViewYed, true);
             InitFileType(".yld", "Cloth Dictionary", 9, FileTypeAction.ViewYld, true);
             InitFileType(".yfd", "Frame Filter Dictionary", 9, FileTypeAction.ViewYfd);
             InitFileType(".asi", "ASI Plugin", 9);
@@ -297,7 +298,7 @@ namespace CodeWalker
             InitFileType(".png", "Portable Network Graphics", 16);
             InitFileType(".dds", "DirectDraw Surface", 16);
             InitFileType(".ytd", "Texture Dictionary", 16, FileTypeAction.ViewYtd, true);
-            InitFileType(".mrf", "MRF File", 18);
+            InitFileType(".mrf", "Move Network File", 18, FileTypeAction.ViewMrf, true);
             InitFileType(".ycd", "Clip Dictionary", 18, FileTypeAction.ViewYcd, true);
             InitFileType(".ypt", "Particle Effect", 18, FileTypeAction.ViewModel, true);
             InitFileType(".ybn", "Static Collisions", 19, FileTypeAction.ViewModel, true);
@@ -307,20 +308,26 @@ namespace CodeWalker
             InitFileType(".ipl", "Item Placements", 21, FileTypeAction.ViewText);
             InitFileType(".awc", "Audio Wave Container", 22, FileTypeAction.ViewAwc, true);
             InitFileType(".rel", "Audio Data (REL)", 23, FileTypeAction.ViewRel, true);
+            InitFileType(".nametable", "Name Table", 5, FileTypeAction.ViewNametable);
+            InitFileType(".ypdb", "Pose Matcher Database", 9, FileTypeAction.ViewYpdb, true);
 
-            InitSubFileType(".dat", "cache_y.dat", "Cache File", 6, FileTypeAction.ViewCacheDat);
+            InitSubFileType(".dat", "cache_y.dat", "Cache File", 6, FileTypeAction.ViewCacheDat, true);
+            InitSubFileType(".dat", "heightmap.dat", "Heightmap", 6, FileTypeAction.ViewHeightmap, true);
+            InitSubFileType(".dat", "heightmapheistisland.dat", "Heightmap", 6, FileTypeAction.ViewHeightmap, true);
+            InitSubFileType(".dat", "distantlights.dat", "Distant Lights", 6, FileTypeAction.ViewDistantLights);
+            InitSubFileType(".dat", "distantlights_hd.dat", "Distant Lights", 6, FileTypeAction.ViewDistantLights);
         }
         private void InitFileType(string ext, string name, int imgidx, FileTypeAction defaultAction = FileTypeAction.ViewHex, bool xmlConvertible = false)
         {
             var ft = new FileTypeInfo(ext, name, imgidx, defaultAction, xmlConvertible);
             FileTypes[ext] = ft;
         }
-        private void InitSubFileType(string ext, string subext, string name, int imgidx, FileTypeAction defaultAction = FileTypeAction.ViewHex)
+        private void InitSubFileType(string ext, string subext, string name, int imgidx, FileTypeAction defaultAction = FileTypeAction.ViewHex, bool xmlConvertible = false)
         {
             FileTypeInfo pti = null;
             if (FileTypes.TryGetValue(ext, out pti))
             {
-                var ft = new FileTypeInfo(subext, name, imgidx, defaultAction, pti.XmlConvertible);
+                var ft = new FileTypeInfo(subext, name, imgidx, defaultAction, xmlConvertible);
                 pti.AddSubType(ft);
             }
         }
@@ -686,10 +693,25 @@ namespace CodeWalker
             RefreshMainTreeViewRoot(root);
 
 
+            var remFolders = new List<MainTreeFolder>();
+
             foreach (var extraroot in ExtraRootFolders)
             {
                 extraroot.Clear();
-                RefreshMainTreeViewRoot(extraroot);
+
+                if (Directory.Exists(extraroot.FullPath))
+                {
+                    RefreshMainTreeViewRoot(extraroot);
+                }
+                else
+                {
+                    remFolders.Add(extraroot);
+                }
+            }
+
+            foreach (var remFolder in remFolders)
+            {
+                ExtraRootFolders.Remove(remFolder);
             }
 
 
@@ -1383,6 +1405,9 @@ namespace CodeWalker
                 case FileTypeAction.ViewYed:
                 case FileTypeAction.ViewYld:
                 case FileTypeAction.ViewYfd:
+                case FileTypeAction.ViewHeightmap:
+                case FileTypeAction.ViewMrf:
+                case FileTypeAction.ViewDistantLights:
                     return true;
                 case FileTypeAction.ViewHex:
                 default:
@@ -1509,6 +1534,21 @@ namespace CodeWalker
                     case FileTypeAction.ViewYfd:
                         ViewYfd(name, path, data, fe);
                         break;
+                    case FileTypeAction.ViewHeightmap:
+                        ViewHeightmap(name, path, data, fe);
+                        break;
+                    case FileTypeAction.ViewMrf:
+                        ViewMrf(name, path, data, fe);
+                        break;
+                    case FileTypeAction.ViewNametable:
+                        ViewNametable(name, path, data, fe);
+                        break;
+                    case FileTypeAction.ViewDistantLights:
+                        ViewDistantLights(name, path, data, fe);
+                        break;
+                    case FileTypeAction.ViewYpdb:
+                        ViewYpdb(name, path, data, fe);
+                        break;
                     case FileTypeAction.ViewHex:
                     default:
                         ViewHex(name, path, data);
@@ -1579,7 +1619,7 @@ namespace CodeWalker
         private void ViewYtd(string name, string path, byte[] data, RpfFileEntry e)
         {
             var ytd = RpfFile.GetFile<YtdFile>(e, data);
-            YtdForm f = new YtdForm();
+            YtdForm f = new YtdForm(this);
             f.Show();
             f.LoadYtd(ytd);
         }
@@ -1669,9 +1709,9 @@ namespace CodeWalker
         private void ViewGxt(string name, string path, byte[] data, RpfFileEntry e)
         {
             var gxt = RpfFile.GetFile<Gxt2File>(e, data);
-            GxtForm f = new GxtForm();
+            TextForm f = new TextForm(this);
             f.Show();
-            f.LoadGxt2(gxt);
+            f.LoadGxt2(name, path, gxt);
         }
         private void ViewRel(string name, string path, byte[] data, RpfFileEntry e)
         {
@@ -1718,16 +1758,16 @@ namespace CodeWalker
         private void ViewYed(string name, string path, byte[] data, RpfFileEntry e)
         {
             var yed = RpfFile.GetFile<YedFile>(e, data);
-            GenericForm f = new GenericForm(this);
+            MetaForm f = new MetaForm(this);
             f.Show();
-            f.LoadFile(yed, yed.RpfFileEntry);
+            f.LoadMeta(yed);
         }
         private void ViewYld(string name, string path, byte[] data, RpfFileEntry e)
         {
             var yld = RpfFile.GetFile<YldFile>(e, data);
-            GenericForm f = new GenericForm(this);
+            MetaForm f = new MetaForm(this);
             f.Show();
-            f.LoadFile(yld, yld.RpfFileEntry);
+            f.LoadMeta(yld);
         }
         private void ViewYfd(string name, string path, byte[] data, RpfFileEntry e)
         {
@@ -1742,6 +1782,40 @@ namespace CodeWalker
             MetaForm f = new MetaForm(this);
             f.Show();
             f.LoadMeta(cachedat);
+        }
+        private void ViewHeightmap(string name, string path, byte[] data, RpfFileEntry e)
+        {
+            var heightmap = RpfFile.GetFile<HeightmapFile>(e, data);
+            MetaForm f = new MetaForm(this);
+            f.Show();
+            f.LoadMeta(heightmap);
+        }
+        private void ViewMrf(string name, string path, byte[] data, RpfFileEntry e)
+        {
+            var mrf = RpfFile.GetFile<MrfFile>(e, data);
+            MetaForm f = new MetaForm(this);
+            f.Show();
+            f.LoadMeta(mrf);
+        }
+        private void ViewNametable(string name, string path, byte[] data, RpfFileEntry e)
+        {
+            TextForm f = new TextForm(this);
+            f.Show();
+            f.LoadNametable(name, path, data, e);
+        }
+        private void ViewDistantLights(string name, string path, byte[] data, RpfFileEntry e)
+        {
+            var dlf = RpfFile.GetFile<DistantLightsFile>(e, data);
+            GenericForm f = new GenericForm(this);
+            f.Show();
+            f.LoadFile(dlf, dlf.RpfFileEntry);
+        }
+        private void ViewYpdb(string name, string path, byte[] data, RpfFileEntry e)
+        {
+            var ypdb = RpfFile.GetFile<YpdbFile>(e, data);
+            MetaForm f = new MetaForm(this);
+            f.Show();
+            f.LoadMeta(ypdb);
         }
 
         private RpfFileEntry CreateFileEntry(string name, string path, ref byte[] data)
@@ -1984,7 +2058,7 @@ namespace CodeWalker
                 FolderBrowserDialog.SelectedPath = selpath;
             }
 
-            if (FolderBrowserDialog.ShowDialog() != DialogResult.OK) return "";
+            if (FolderBrowserDialog.ShowDialogNew() != DialogResult.OK) return "";
             string folderpath = FolderBrowserDialog.SelectedPath;
             if (!folderpath.EndsWith("\\")) folderpath += "\\";
 
@@ -2033,7 +2107,7 @@ namespace CodeWalker
                 var nl = file?.File?.NameLower ?? file?.Name?.ToLowerInvariant();
                 if (!string.IsNullOrEmpty(nl))
                 {
-                    needfolder = nl.EndsWith(".ytd") || nl.EndsWith(".ydr") || nl.EndsWith(".ydd") || nl.EndsWith(".yft") || nl.EndsWith(".ypt") || nl.EndsWith(".awc");
+                    needfolder = nl.EndsWith(".ytd") || nl.EndsWith(".ydr") || nl.EndsWith(".ydd") || nl.EndsWith(".yft") || nl.EndsWith(".ypt") || nl.EndsWith(".awc") || nl.EndsWith(".fxc");
                 }
             }
 
@@ -2333,46 +2407,79 @@ namespace CodeWalker
             {
                 return;//no name was provided.
             }
-            if (!IsFilenameOk(fname)) return; //new name contains invalid char(s). don't do anything
 
-
-            string cpath = (string.IsNullOrEmpty(CurrentFolder.Path) ? "" : CurrentFolder.Path + "\\");
-            string relpath = cpath + fname.ToLowerInvariant();
-            var rootpath = GTAFolder.GetCurrentGTAFolderWithTrailingSlash();
-            string fullpath = rootpath + relpath;
+            var fnames = fname.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
 
             RpfDirectoryEntry newdir = null;
             MainTreeFolder node = null;
+            MainTreeFolder cnode = null;
+            string cpath = (string.IsNullOrEmpty(CurrentFolder.Path) ? "" : CurrentFolder.Path + "\\");
+            var rootpath = GTAFolder.GetCurrentGTAFolderWithTrailingSlash();
+            var csubpath = "";
 
-            try
+            foreach (var name in fnames)
             {
-                if (CurrentFolder.RpfFolder != null)
+                if (!IsFilenameOk(name)) break; //new name contains invalid char(s). don't continue
+
+                csubpath += name;
+
+                string relpath = cpath + csubpath.ToLowerInvariant();
+                string fullpath = rootpath + relpath;
+
+                try
                 {
-                    if (!EnsureRpfValidEncryption()) return;
-
-                    //create new directory entry in the RPF.
-
-                    newdir = RpfFile.CreateDirectory(CurrentFolder.RpfFolder, fname);
-
-                    node = CreateRpfDirTreeFolder(newdir, relpath, fullpath);
-                }
-                else
-                {
-                    //create a folder in the filesystem.
-                    if (Directory.Exists(fullpath))
+                    if (CurrentFolder.RpfFolder != null)
                     {
-                        throw new Exception("Folder " + fullpath + " already exists!");
-                    }
-                    Directory.CreateDirectory(fullpath);
+                        if (!EnsureRpfValidEncryption()) return;
 
-                    node = CreateRootDirTreeFolder(fname, relpath, fullpath);
+                        //create new directory entry in the RPF.
+
+                        newdir = RpfFile.CreateDirectory(newdir ?? CurrentFolder.RpfFolder, name);
+
+                        var newnode = CreateRpfDirTreeFolder(newdir, relpath, fullpath);
+
+                        if (node == null)
+                        {
+                            node = newnode;
+                            cnode = newnode;
+                        }
+                        else
+                        {
+                            cnode.AddChild(newnode);
+                            cnode = newnode;
+                        }
+                    }
+                    else
+                    {
+                        //create a folder in the filesystem.
+                        if (Directory.Exists(fullpath))
+                        {
+                            throw new Exception("Folder " + fullpath + " already exists!");
+                        }
+                        Directory.CreateDirectory(fullpath);
+
+                        var newnode = CreateRootDirTreeFolder(name, relpath, fullpath);
+                        if (node == null)
+                        {
+                            node = newnode;
+                            cnode = newnode;
+                        }
+                        else
+                        {
+                            cnode.AddChild(newnode);
+                            cnode = newnode;
+                        }
+                    }
                 }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error creating new folder: " + ex.Message, "Unable to create new folder");
+                    return;
+                }
+
+                csubpath += "\\";
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error creating new folder: " + ex.Message, "Unable to create new folder");
-                return;
-            }
+
 
             if (node != null)
             {
@@ -2433,6 +2540,42 @@ namespace CodeWalker
                 AddNewFolderTreeNode(node);
             }
 
+        }
+        private void NewYtdFile()
+        {
+            if (CurrentFolder == null) return;//shouldn't happen
+            if (CurrentFolder?.IsSearchResults ?? false) return;
+
+            string fname = Prompt.ShowDialog(this, "Enter a name for the new YTD file:", "Create YTD (Texture Dictionary)", "new");
+            if (string.IsNullOrEmpty(fname))
+            {
+                return;//no name was provided.
+            }
+            if (!IsFilenameOk(fname)) return; //new name contains invalid char(s). don't do anything
+
+            if (!fname.ToLowerInvariant().EndsWith(".ytd"))
+            {
+                fname = fname + ".ytd";//make sure it ends with .ytd
+            }
+
+            var ytd = new YtdFile();
+            ytd.TextureDict = new TextureDictionary();
+            ytd.TextureDict.Textures = new ResourcePointerList64<Texture>();
+            ytd.TextureDict.TextureNameHashes = new ResourceSimpleList64_uint();
+            var data = ytd.Save();
+
+            if (CurrentFolder.RpfFolder != null) //create in RPF archive
+            {
+                RpfFile.CreateFile(CurrentFolder.RpfFolder, fname, data);
+            }
+            else //create in filesystem
+            {
+                var outfpath = Path.Combine(CurrentFolder.FullPath, fname);
+                File.WriteAllBytes(outfpath, data);
+                CurrentFolder.EnsureFile(outfpath);
+            }
+
+            RefreshMainListView();
         }
         private void ImportFbx()
         {
@@ -2530,7 +2673,7 @@ namespace CodeWalker
             RefreshMainListView();
 
         }
-        private void ImportXml()
+        private void ImportXmlDialog()
         {
             if (!EditMode) return;
             if (CurrentFolder?.IsSearchResults ?? false) return;
@@ -2539,14 +2682,12 @@ namespace CodeWalker
 
             if (!EnsureRpfValidEncryption() && (CurrentFolder.RpfFolder != null)) return;
 
-
             OpenFileDialog.Filter = "XML Files|*.xml";
-            if (OpenFileDialog.ShowDialog(this) != DialogResult.OK)
-            {
-                return;//canceled
-            }
-
-            var fpaths = OpenFileDialog.FileNames;
+            if (OpenFileDialog.ShowDialog(this) != DialogResult.OK) return;
+            ImportXml(OpenFileDialog.FileNames);
+        }
+        private void ImportXml(string[] fpaths)
+        {
             foreach (var fpath in fpaths)
             {
 #if !DEBUG
@@ -2562,68 +2703,15 @@ namespace CodeWalker
                     var fname = fi.Name;
                     var fnamel = fname.ToLowerInvariant();
                     var fpathin = fpath;
-                    var mformat = MetaFormat.RSC;
-                    var trimlength = 4;
 
                     if (!fnamel.EndsWith(".xml"))
                     {
                         MessageBox.Show(fname + ": Not an XML file!", "Cannot import XML");
                         continue;
                     }
-                    if (fnamel.EndsWith(".pso.xml"))
-                    {
-                        mformat = MetaFormat.PSO;
-                        trimlength = 8;
-                    }
-                    if (fnamel.EndsWith(".rbf.xml"))
-                    {
-                        mformat = MetaFormat.RBF;
-                        trimlength = 8;
-                    }
-                    if (fnamel.EndsWith(".rel.xml"))
-                    {
-                        mformat = MetaFormat.AudioRel;
-                    }
-                    if (fnamel.EndsWith(".ynd.xml"))
-                    {
-                        mformat = MetaFormat.Ynd;
-                    }
-                    if (fnamel.EndsWith(".ycd.xml"))
-                    {
-                        mformat = MetaFormat.Ycd;
-                    }
-                    if (fnamel.EndsWith(".ybn.xml"))
-                    {
-                        mformat = MetaFormat.Ybn;
-                    }
-                    if (fnamel.EndsWith(".ytd.xml"))
-                    {
-                        mformat = MetaFormat.Ytd;
-                    }
-                    if (fnamel.EndsWith(".ydr.xml"))
-                    {
-                        mformat = MetaFormat.Ydr;
-                    }
-                    if (fnamel.EndsWith(".ydd.xml"))
-                    {
-                        mformat = MetaFormat.Ydd;
-                    }
-                    if (fnamel.EndsWith(".yft.xml"))
-                    {
-                        mformat = MetaFormat.Yft;
-                    }
-                    if (fnamel.EndsWith(".ypt.xml"))
-                    {
-                        mformat = MetaFormat.Ypt;
-                    }
-                    if (fnamel.EndsWith(".yld.xml"))
-                    {
-                        mformat = MetaFormat.Yld;
-                    }
-                    if (fnamel.EndsWith(".awc.xml"))
-                    {
-                        mformat = MetaFormat.Awc;
-                    }
+
+                    var trimlength = 4;
+                    var mformat = XmlMeta.GetXMLFormat(fnamel, out trimlength);
 
                     fname = fname.Substring(0, fname.Length - trimlength);
                     fnamel = fnamel.Substring(0, fnamel.Length - trimlength);
@@ -2637,166 +2725,7 @@ namespace CodeWalker
                         doc.LoadXml(text);
                     }
 
-                    byte[] data = null;
-
-                    switch (mformat)
-                    {
-                        case MetaFormat.RSC:
-                            {
-                                var meta = XmlMeta.GetMeta(doc);
-                                if ((meta.DataBlocks?.Data == null) || (meta.DataBlocks.Count == 0))
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import Meta XML");
-                                    continue;
-                                }
-                                data = ResourceBuilder.Build(meta, 2); //meta is RSC V:2
-                                break;
-                            }
-                        case MetaFormat.PSO:
-                            {
-                                var pso = XmlPso.GetPso(doc);
-                                if ((pso.DataSection == null) || (pso.DataMapSection == null) || (pso.SchemaSection == null))
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import PSO XML");
-                                    continue;
-                                }
-                                data = pso.Save();
-                                break;
-                            }
-                        case MetaFormat.RBF:
-                            {
-                                var rbf = XmlRbf.GetRbf(doc);
-                                if (rbf.current == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import RBF XML");
-                                    continue;
-                                }
-                                data = rbf.Save();
-                                break;
-                            }
-                        case MetaFormat.AudioRel:
-                            {
-                                var rel = XmlRel.GetRel(doc);
-                                if ((rel.RelDatasSorted == null) || (rel.RelDatas == null))
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import REL XML");
-                                    continue;
-                                }
-                                data = rel.Save();
-                                break;
-                            }
-                        case MetaFormat.Ynd:
-                            {
-                                var ynd = XmlYnd.GetYnd(doc);
-                                if (ynd.NodeDictionary == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YND XML");
-                                    continue;
-                                }
-                                data = ynd.Save();
-                                break;
-                            }
-                        case MetaFormat.Ycd:
-                            {
-                                var ycd = XmlYcd.GetYcd(doc);
-                                if (ycd.ClipDictionary == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YCD XML");
-                                    continue;
-                                }
-                                data = ycd.Save();
-                                break;
-                            }
-                        case MetaFormat.Ybn:
-                            {
-                                var ybn = XmlYbn.GetYbn(doc);
-                                if (ybn.Bounds == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YBN XML");
-                                    continue;
-                                }
-                                data = ybn.Save();
-                                break;
-                            }
-                        case MetaFormat.Ytd:
-                            {
-                                var ytd = XmlYtd.GetYtd(doc, fpathin);
-                                if (ytd.TextureDict == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YTD XML");
-                                    continue;
-                                }
-                                data = ytd.Save();
-                                break;
-                            }
-                        case MetaFormat.Ydr:
-                            {
-                                var ydr = XmlYdr.GetYdr(doc, fpathin);
-                                if (ydr.Drawable == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YDR XML");
-                                    continue;
-                                }
-                                data = ydr.Save();
-                                break;
-                            }
-                        case MetaFormat.Ydd:
-                            {
-                                var ydd = XmlYdd.GetYdd(doc, fpathin);
-                                if (ydd.DrawableDict == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YDD XML");
-                                    continue;
-                                }
-                                data = ydd.Save();
-                                break;
-                            }
-                        case MetaFormat.Yft:
-                            {
-                                var yft = XmlYft.GetYft(doc, fpathin);
-                                if (yft.Fragment == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YFT XML");
-                                    continue;
-                                }
-                                data = yft.Save();
-                                break;
-                            }
-                        case MetaFormat.Ypt:
-                            {
-                                var ypt = XmlYpt.GetYpt(doc, fpathin);
-                                if (ypt.PtfxList == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YPT XML");
-                                    continue;
-                                }
-                                data = ypt.Save();
-                                break;
-                            }
-                        case MetaFormat.Yld:
-                            {
-                                var yld = XmlYld.GetYld(doc, fpathin);
-                                if (yld.ClothDictionary == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import YLD XML");
-                                    continue;
-                                }
-                                data = yld.Save();
-                                break;
-                            }
-                        case MetaFormat.Awc:
-                            {
-                                var awc = XmlAwc.GetAwc(doc, fpathin);
-                                if (awc.Streams == null)
-                                {
-                                    MessageBox.Show(fname + ": Schema not supported.", "Cannot import AWC XML");
-                                    continue;
-                                }
-                                data = awc.Save();
-                                break;
-                            }
-                    }
-
+                    byte[] data = XmlMeta.GetData(doc, mformat, fpathin);
 
                     if (data != null)
                     {
@@ -2811,7 +2740,10 @@ namespace CodeWalker
                             CurrentFolder.EnsureFile(outfpath);
                         }
                     }
-
+                    else
+                    {
+                        MessageBox.Show(fname + ": Schema not supported.", "Cannot import " + XmlMeta.GetXMLFormatName(mformat));
+                    }
 
                 }
 #if !DEBUG
@@ -3611,7 +3543,7 @@ namespace CodeWalker
                     else if (ctrl) ExtractRaw();
                     break;
                 case Keys.Insert:
-                    if (shft) ImportXml();
+                    if (shft) ImportXmlDialog();
                     else if (!ctrl) ImportRaw();
                     break;
                 case Keys.C:
@@ -3790,7 +3722,19 @@ namespace CodeWalker
                 var files = e.Data.GetData(DataFormats.FileDrop) as string[];
                 if ((files == null) || (files.Length <= 0)) return;
                 if (files[0].StartsWith(GetDropFolder(), StringComparison.InvariantCultureIgnoreCase)) return; //don't dry to drop on ourselves...
-                ImportRaw(files);
+
+                //Import as raw regardless of file type while pressing shift
+                if ((e.KeyState & 4) == 4)
+                {
+                    ImportRaw(files);
+                    return;
+                }
+
+                var xml = files.Where(x => x.EndsWith(".xml") && (x.IndexOf('.') != x.LastIndexOf('.')));
+                var raw = files.Except(xml);
+
+                if (raw.Count() > 0) ImportRaw(raw.ToArray());
+                if (xml.Count() > 0) ImportXml(xml.ToArray());
             }
         }
 
@@ -3995,6 +3939,11 @@ namespace CodeWalker
             NewRpfArchive();
         }
 
+        private void ListContextNewYtdFileMenu_Click(object sender, EventArgs e)
+        {
+            NewYtdFile();
+        }
+
         private void ListContextImportFbxMenu_Click(object sender, EventArgs e)
         {
             ImportFbx();
@@ -4002,7 +3951,7 @@ namespace CodeWalker
 
         private void ListContextImportXmlMenu_Click(object sender, EventArgs e)
         {
-            ImportXml();
+            ImportXmlDialog();
         }
 
         private void ListContextImportRawMenu_Click(object sender, EventArgs e)
@@ -4097,7 +4046,7 @@ namespace CodeWalker
 
         private void EditImportXmlMenu_Click(object sender, EventArgs e)
         {
-            ImportXml();
+            ImportXmlDialog();
         }
 
         private void EditImportRawMenu_Click(object sender, EventArgs e)
@@ -4188,7 +4137,25 @@ namespace CodeWalker
 
         private void ToolsBinSearchMenu_Click(object sender, EventArgs e)
         {
-            BinarySearchForm f = new BinarySearchForm(FileCache);
+            BinarySearchForm f = new BinarySearchForm(GetFileCache());
+            f.Show(this);
+        }
+
+        private void ToolsAudioExplorerMenu_Click(object sender, EventArgs e)
+        {
+            AudioExplorerForm f = new AudioExplorerForm(GetFileCache());
+            f.Show(this);
+        }
+
+        private void ToolsJenkGenMenu_Click(object sender, EventArgs e)
+        {
+            JenkGenForm f = new JenkGenForm();
+            f.Show(this);
+        }
+
+        private void ToolsJenkIndMenu_Click(object sender, EventArgs e)
+        {
+            JenkIndForm f = new JenkIndForm(GetFileCache());
             f.Show(this);
         }
 
@@ -4623,6 +4590,11 @@ namespace CodeWalker
         ViewYed = 20,
         ViewYld = 21,
         ViewYfd = 22,
+        ViewHeightmap = 23,
+        ViewMrf = 24,
+        ViewNametable = 25,
+        ViewDistantLights = 26,
+        ViewYpdb = 27,
     }
 
 

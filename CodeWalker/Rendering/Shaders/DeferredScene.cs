@@ -90,7 +90,7 @@ namespace CodeWalker.Rendering
         VertexShader LightVS;
         PixelShader LightPS;
         PixelShader LightMSPS;
-        UnitCone LightCone;
+        LightCone LightCone;
         UnitSphere LightSphere;
         UnitCapsule LightCapsule;
         UnitQuad LightQuad;
@@ -160,8 +160,8 @@ namespace CodeWalker.Rendering
             }
 
 
-            LightCone = new UnitCone(device, bLodLightVS, 4, false);
-            LightSphere = new UnitSphere(device, bLodLightVS, 4, true);
+            LightCone = new LightCone(device, bLodLightVS, 2);
+            LightSphere = new UnitSphere(device, bLodLightVS, 3, true);
             LightCapsule = new UnitCapsule(device, bLodLightVS, 4, false);
             LightQuad = new UnitQuad(device, true);
             LightQuadLayout = new InputLayout(device, bDirLightVS, new[]
@@ -546,10 +546,23 @@ namespace CodeWalker.Rendering
                 var li = lights[i];
                 var rl = li.Light;
 
-                LightInstVars.Vars.InstPosition = li.EntityPosition + li.EntityRotation.Multiply(rl.Position) - camera.Position;
-                LightInstVars.Vars.InstDirection = li.EntityRotation.Multiply(rl.Direction);
-                LightInstVars.Vars.InstTangentX = li.EntityRotation.Multiply(rl.TangentX);
-                LightInstVars.Vars.InstTangentY = li.EntityRotation.Multiply(rl.TangentY);
+                var pos = rl.Position;
+                var dir = rl.Direction;
+                var tx = rl.TangentX;
+                var ty = rl.TangentY;
+                if (rl.Bone != null)
+                {
+                    var xform = rl.Bone.AnimTransform;
+                    pos = xform.Multiply(pos);
+                    dir = xform.MultiplyRot(dir);
+                    tx = xform.MultiplyRot(tx);
+                    ty = xform.MultiplyRot(ty);
+                }
+
+                LightInstVars.Vars.InstPosition = li.EntityPosition + li.EntityRotation.Multiply(pos) - camera.Position;
+                LightInstVars.Vars.InstDirection = li.EntityRotation.Multiply(dir);
+                LightInstVars.Vars.InstTangentX = li.EntityRotation.Multiply(tx);
+                LightInstVars.Vars.InstTangentY = li.EntityRotation.Multiply(ty);
                 LightInstVars.Vars.InstCapsuleExtent = li.EntityRotation.Multiply(rl.CapsuleExtent);
                 LightInstVars.Vars.InstCullingPlaneNormal = li.EntityRotation.Multiply(rl.CullingPlaneNormal);
                 LightInstVars.Vars.InstColour = rl.Colour;
