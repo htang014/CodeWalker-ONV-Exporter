@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ONV_Exporter": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\Hanst\\Desktop\\import\\navmesh[90][108].ynv\" \"C:\\Users\\Hanst\\Desktop\\export\\navmesh[90][108].onv\""
+    }
+  }
+}
